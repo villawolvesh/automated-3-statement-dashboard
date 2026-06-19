@@ -5,8 +5,8 @@ Balance Sheet, and Cash Flow** — for a public company, built directly from off
 **SEC EDGAR XBRL** filings. Figures are computed in auditable SQL, validated by an
 integrity guard, and the whole thing **refreshes itself weekly** via GitHub Actions.
 
-**▶ Live dashboard:** https://YOUR_USERNAME.github.io/automated-3-statement-dashboard/
-<!-- Update YOUR_USERNAME after enabling GitHub Pages (Settings → Pages → Deploy from branch: main /docs). -->
+**▶ Live dashboard:** https://villawolvesh.github.io/automated-3-statement-dashboard/
+<!-- Goes live once GitHub Pages is enabled: Settings → Pages → Deploy from branch: main, folder /docs. -->
 
 Current company: **Apple Inc. (AAPL)** · parameterizable by ticker/CIK in `config.py`.
 

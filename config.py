@@ -43,7 +43,7 @@ YEARS_HISTORY = 5
 
 # Public repository URL (used for the "source code" link in the dashboard/README).
 # Updated to the real URL during the GitHub publishing step.
-REPO_URL = "https://github.com/your-username/automated-3-statement-dashboard"
+REPO_URL = "https://github.com/villawolvesh/automated-3-statement-dashboard"
 
 # ---------------------------------------------------------------------------
 # Project paths (resolved relative to this file, so it works anywhere)
