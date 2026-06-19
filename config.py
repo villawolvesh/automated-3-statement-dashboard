@@ -28,10 +28,10 @@ COMPANY = {
 # pipeline, and as a GitHub Actions secret for the scheduled refresh:
 #   PowerShell:  $env:SEC_USER_AGENT = "Your Name your@email.com"
 #   bash:        export SEC_USER_AGENT="Your Name your@email.com"
-USER_AGENT = os.environ.get(
-    "SEC_USER_AGENT",
-    "automated-3-statement-dashboard (set SEC_USER_AGENT with your contact email)",
-)
+# Read the raw value (empty string if the variable is missing OR set but blank --
+# e.g. an unset GitHub Actions secret injects ""). fetch_edgar validates it before
+# any request and fails loudly, so we never send an empty User-Agent (-> 403).
+USER_AGENT = os.environ.get("SEC_USER_AGENT", "").strip()
 
 # companyfacts endpoint: all reported XBRL facts for one company, in one JSON.
 EDGAR_COMPANYFACTS_URL = (

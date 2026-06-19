@@ -19,11 +19,32 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 import config  # noqa: E402
 
 
+def validate_user_agent(user_agent: str) -> None:
+    """Fail loudly (not with a confusing 403) if the User-Agent is missing or
+    has no contact email. The SEC requires a descriptive User-Agent that
+    includes an email, e.g. 'Your Name your@email.com', or it returns 403.
+    """
+    ua = (user_agent or "").strip()
+    has_email = "@" in ua and "." in ua.split("@")[-1]
+    if not ua or not has_email:
+        raise RuntimeError(
+            "SEC_USER_AGENT is not configured (or contains no contact email).\n"
+            "The SEC requires a descriptive User-Agent WITH an email or it returns "
+            "403 Forbidden. Set it to 'Your Name your@email.com':\n"
+            "  bash:        export SEC_USER_AGENT=\"Your Name your@email.com\"\n"
+            "  PowerShell:  $env:SEC_USER_AGENT = \"Your Name your@email.com\"\n"
+            "  GitHub:      add a repo SECRET (Settings -> Secrets and variables -> "
+            "Actions) named SEC_USER_AGENT (it must be a Secret, not a Variable).\n"
+            f"  Current value seen: {ua!r}"
+        )
+
+
 def fetch_company_facts(cik: str, user_agent: str, retries: int = 3) -> dict:
     """Download the companyfacts JSON for one CIK and return it as a dict.
 
     Retries a few times because the SEC occasionally rate-limits bursts.
     """
+    validate_user_agent(user_agent)          # never send an empty/invalid header
     url = config.EDGAR_COMPANYFACTS_URL.format(cik=cik)
     headers = {"User-Agent": user_agent, "Accept-Encoding": "gzip, deflate"}
 
