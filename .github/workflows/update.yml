@@ -1,0 +1,44 @@
+name: Weekly EDGAR refresh
+
+# Re-pull SEC EDGAR, rebuild the dashboard, and commit the regenerated HTML.
+# The integrity guard inside run_pipeline.py exits non-zero if anything fails to
+# reconcile, which fails the job BEFORE the commit step -> bad numbers are never
+# published.
+
+on:
+  schedule:
+    - cron: "0 6 * * 1"      # every Monday 06:00 UTC
+  workflow_dispatch: {}        # allow manual runs from the Actions tab
+
+permissions:
+  contents: write              # needed to commit the regenerated dashboard
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run pipeline (fetch → SQLite → views → integrity → dashboard)
+        env:
+          SEC_USER_AGENT: ${{ secrets.SEC_USER_AGENT }}
+        run: python src/run_pipeline.py
+
+      - name: Commit regenerated dashboard (only if changed)
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add docs/index.html data/financials.db data/revisions.json
+          if git diff --staged --quiet; then
+            echo "No changes — nothing to publish."
+          else
+            git commit -m "chore: weekly EDGAR refresh [skip ci]"
+            git push
+          fi

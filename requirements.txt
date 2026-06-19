@@ -1,0 +1,4 @@
+# Pinned dependencies for reproducible runs (local + GitHub Actions CI)
+requests==2.33.1
+pandas==3.0.0
+plotly==6.8.0

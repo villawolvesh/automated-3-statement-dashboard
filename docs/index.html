@@ -1,0 +1,876 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Apple Inc. (AAPL) — Automated 3-Statement Dashboard</title>
+<script src="https://cdn.plot.ly/plotly-2.35.2.min.js" charset="utf-8"></script>
+<style>
+  :root {
+    --navy:#1b2a4a; --slate:#334155; --muted:#64748b; --line:#e2e8f0;
+    --bg:#f1f5f9; --card:#ffffff; --accent:#2b6cb0; --accent2:#0e7490;
+    --pos:#15803d; --neg:#b91c1c; --pos-bg:#e7f4ec; --neg-bg:#fbeaea;
+  }
+  * { box-sizing:border-box; }
+  body {
+    margin:0; background:var(--bg); color:var(--slate);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    font-size:15px; line-height:1.45;
+  }
+  .wrap { max-width:1180px; margin:0 auto; padding:0 18px 48px; }
+
+  /* Header */
+  header { background:var(--navy); color:#fff; padding:22px 0 18px; }
+  .header-inner { max-width:1180px; margin:0 auto; padding:0 18px;
+    display:flex; justify-content:space-between; align-items:flex-start; gap:16px; flex-wrap:wrap; }
+  header h1 { margin:0; font-size:22px; font-weight:650; letter-spacing:.2px; }
+  header .sub { margin-top:4px; font-size:13px; color:#aebfd6; }
+  .badge { background:#fff; color:var(--navy); font-weight:700; font-size:13px;
+    padding:6px 12px; border-radius:6px; letter-spacing:.5px; white-space:nowrap; }
+
+  /* Control bar */
+  .controls { background:#fff; border-bottom:1px solid var(--line);
+    position:sticky; top:0; z-index:20; box-shadow:0 1px 2px rgba(0,0,0,.04); }
+  .controls-inner { max-width:1180px; margin:0 auto; padding:10px 18px;
+    display:flex; align-items:center; gap:18px; flex-wrap:wrap; }
+  .ctl { display:flex; align-items:center; gap:7px; font-size:13px; color:var(--muted); }
+  .ctl label { font-weight:600; }
+  select { font:inherit; font-size:13px; padding:5px 8px; border:1px solid var(--line);
+    border-radius:6px; background:#fff; color:var(--slate); cursor:pointer; }
+  select:disabled { color:var(--muted); background:#f8fafc; cursor:not-allowed; }
+
+  /* Tabs */
+  .tabs { display:flex; gap:4px; border-bottom:1px solid var(--line);
+    margin:18px 0 0; flex-wrap:wrap; }
+  .tab-btn { border:none; background:none; padding:11px 16px; font:inherit; font-size:14px;
+    font-weight:600; color:var(--muted); cursor:pointer; border-bottom:2.5px solid transparent; }
+  .tab-btn:hover { color:var(--slate); }
+  .tab-btn.active { color:var(--navy); border-bottom-color:var(--accent); }
+  .panel { display:none; padding-top:18px; }
+  .panel.active { display:block; }
+
+  /* Insight banner */
+  .insight { background:#eef2f8; border-left:3px solid var(--accent);
+    padding:11px 15px; border-radius:0 6px 6px 0; font-size:14px; color:var(--slate);
+    margin-bottom:18px; }
+  .insight b { color:var(--navy); }
+
+  /* Analyst note — secondary, contextual; amber accent to distinguish from insight */
+  .note { background:#fbf8f1; border-left:3px solid #c79a3a; color:#5b6675;
+    padding:9px 13px; border-radius:0 6px 6px 0; font-size:13px; margin:-8px 0 18px; }
+  .note b { color:var(--slate); }
+  .note .tag { font-weight:700; color:#b07d18; text-transform:uppercase;
+    font-size:11px; letter-spacing:.5px; margin-right:6px; }
+  .card .note { margin:10px 0 4px; }
+
+  /* Cards / grid */
+  .grid { display:grid; grid-template-columns:1fr 1fr; gap:18px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:10px;
+    padding:16px 16px 6px; box-shadow:0 1px 2px rgba(0,0,0,.03); }
+  .card.full { grid-column:1 / -1; }
+  .card h3 { margin:0 0 6px; font-size:14px; font-weight:650; color:var(--navy); }
+  .chart { width:100%; height:340px; }
+  .chart.tall { height:380px; }
+
+  /* KPI cards */
+  .kpis { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:18px; }
+  .kpi { background:#fff; border:1px solid var(--line); border-radius:10px; padding:14px 16px; }
+  .kpi .k-label { font-size:12px; color:var(--muted); font-weight:600; text-transform:uppercase; letter-spacing:.4px; }
+  .kpi .k-val { font-size:26px; font-weight:700; color:var(--navy); margin-top:4px; }
+  .kpi .k-sub { font-size:12px; color:var(--muted); margin-top:2px; }
+  .kpi .k-chg { font-size:12px; font-weight:600; margin-top:3px; }
+  .kpi .k-chg.pos { color:var(--pos); } .kpi .k-chg.neg { color:var(--neg); }
+
+  /* Tables */
+  table.fin { width:100%; border-collapse:collapse; font-size:13px; }
+  table.fin th, table.fin td { padding:7px 9px; text-align:right; border-bottom:1px solid var(--line); }
+  table.fin th:first-child, table.fin td:first-child { text-align:left; }
+  table.fin thead th { color:var(--muted); font-weight:600; font-size:12px;
+    text-transform:uppercase; letter-spacing:.3px; }
+  table.fin tbody tr:hover { background:#f8fafc; }
+  .pos { color:var(--pos); } .neg { color:var(--neg); }
+  .chip { padding:2px 7px; border-radius:5px; font-weight:600; font-size:12px; }
+  .chip.pos { background:var(--pos-bg); } .chip.neg { background:var(--neg-bg); }
+
+  /* Toolbar with view / frequency toggles */
+  .toolbar { display:flex; gap:16px; align-items:center; flex-wrap:wrap; margin-bottom:14px; }
+  .toolbar .tlabel { font-size:12px; color:var(--muted); font-weight:600;
+    text-transform:uppercase; letter-spacing:.4px; }
+  .toggle { display:inline-flex; border:1px solid var(--line); border-radius:7px; overflow:hidden; }
+  .toggle button { border:none; background:#fff; padding:7px 13px; font:inherit; font-size:13px;
+    font-weight:600; color:var(--muted); cursor:pointer; }
+  .toggle button + button { border-left:1px solid var(--line); }
+  .toggle button.active { background:var(--navy); color:#fff; }
+
+  /* Spreadsheet-style statement table with a sticky first column */
+  .sheet-wrap { overflow-x:auto; border:1px solid var(--line); border-radius:10px; background:#fff; }
+  table.sheet { width:100%; border-collapse:collapse; font-size:13px; min-width:600px; }
+  table.sheet th, table.sheet td { padding:8px 13px; text-align:right; white-space:nowrap;
+    border-bottom:1px solid var(--line); }
+  table.sheet thead th { background:#f1f5f9; color:var(--muted); font-weight:600; font-size:12px; }
+  table.sheet th:first-child, table.sheet td:first-child { text-align:left; position:sticky; left:0;
+    background:#fff; z-index:2; font-weight:500; box-shadow:1px 0 0 var(--line); }
+  table.sheet thead th:first-child { background:#f1f5f9; z-index:3; }
+  table.sheet tbody tr.clickable { cursor:pointer; }
+  table.sheet tbody tr.clickable:hover td, table.sheet tbody tr.clickable:hover td:first-child { background:#eef4fb; }
+  table.sheet tbody tr.sel td, table.sheet tbody tr.sel td:first-child { background:#e3edf9; }
+  table.sheet .naq { color:#b0b7c3; }
+  .qnote { font-size:12px; color:var(--muted); margin:10px 2px 0; }
+  .qnote b { color:#b07d18; }
+  .viewsub { font-size:12px; color:var(--muted); margin:0 2px 10px; font-style:italic; }
+
+  /* Per-chart period selector */
+  .chart-head { display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:6px; }
+  .chart-head h3 { margin:0; }
+  .mini-sel { font:inherit; font-size:12px; padding:4px 9px; border:1px solid var(--line);
+    border-radius:6px; background:#fff; color:var(--slate); cursor:pointer; }
+
+  /* Notable items strip + curated notes */
+  .notable { margin:16px 0 4px; }
+  .notable .nhead { font-size:12px; font-weight:700; color:var(--muted);
+    text-transform:uppercase; letter-spacing:.4px; margin-bottom:8px; }
+  .notable .nitem { font-size:13px; color:var(--slate); padding:7px 11px; border-left:3px solid var(--accent2);
+    background:#f3f8fa; border-radius:0 6px 6px 0; margin-bottom:7px; }
+  .notable .nitem.curated { border-left-color:#c79a3a; background:#fbf8f1; }
+  .notable .nitem .src { color:var(--accent); text-decoration:none; font-size:12px; margin-left:6px; }
+  /* in-cell markers */
+  .cellflag { display:inline-block; width:6px; height:6px; border-radius:50%;
+    background:var(--accent2); margin-left:6px; vertical-align:middle; cursor:help; }
+  .cellnote { color:#b07d18; font-weight:700; cursor:help; margin-left:4px; font-size:11px; }
+  .cellrev { color:#2563eb; cursor:help; margin-left:4px; font-size:12px; }
+  .cellderiv { color:#7c8aa0; cursor:help; margin-left:4px; font-size:10px; vertical-align:super; }
+  .derivtag { font-size:11px; font-weight:600; color:#7c8aa0; background:#eef1f5;
+    padding:2px 7px; border-radius:5px; margin-left:8px; }
+
+  footer { margin-top:30px; padding-top:16px; border-top:1px solid var(--line);
+    font-size:12px; color:var(--muted); }
+  footer a { color:var(--accent); text-decoration:none; }
+
+  @media (max-width:768px) {
+    .grid { grid-template-columns:1fr; }
+    .kpis { grid-template-columns:1fr 1fr; }
+    header h1 { font-size:18px; }
+    .chart { height:300px; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="header-inner">
+    <div>
+      <h1>Apple Inc. (AAPL) — Automated 3-Statement Dashboard</h1>
+      <div class="sub">Data: SEC EDGAR XBRL (companyfacts) · FY2021–FY2025 · auto-updated weekly · Last updated 2026-06-19</div>
+    </div>
+    <div class="badge">AAPL</div>
+  </div>
+</header>
+
+<div class="controls">
+  <div class="controls-inner">
+    <div class="ctl"><label>Ticker</label>
+      <select id="sel-ticker" disabled><option>AAPL</option></select>
+    </div>
+    <div class="ctl" style="color:var(--muted);font-size:12px;">
+      Each statement has its own <b style="color:var(--slate)">View</b> &amp;
+      <b style="color:var(--slate)">Period</b> toggles · click any row for its trend.
+    </div>
+  </div>
+</div>
+
+<div class="wrap">
+  <div class="tabs" id="tabs">
+    <button class="tab-btn active" data-tab="income">Income</button>
+    <button class="tab-btn" data-tab="balance">Balance Sheet</button>
+    <button class="tab-btn" data-tab="cashflow">Cash Flow</button>
+    <button class="tab-btn" data-tab="ratios">Ratios</button>
+    <button class="tab-btn" data-tab="variance">Variance</button>
+  </div>
+
+  <!-- INCOME -->
+  <section class="panel active" id="tab-income">
+    <div class="insight" id="ins-income"></div>
+    <div class="note" id="note-income"></div>
+    <div class="toolbar">
+      <span class="tlabel">View</span>
+      <div class="toggle" data-group="view" data-tab="income">
+        <button data-v="values" class="active">Values $</button>
+        <button data-v="growth" title="YoY — vs the same period last year">Growth (YoY %)</button>
+        <button data-v="growthq" title="QoQ — vs the immediately prior period">Growth (QoQ %)</button>
+        <button data-v="pct">% of Revenue</button>
+      </div>
+      <span class="tlabel">Period</span>
+      <div class="toggle" data-group="freq" data-tab="income">
+        <button data-f="annual" class="active">Annual</button>
+        <button data-f="quarterly">Quarterly</button>
+      </div>
+      <span class="tlabel qonly" data-yeartab="income" style="display:none;">Year</span>
+      <select class="mini-sel qonly" id="income-year-sel" data-yeartab="income" style="display:none;"></select>
+    </div>
+    <div class="viewsub" id="viewsub-income"></div>
+    <div class="sheet-wrap"><div id="t-income-sheet"></div></div>
+    <div class="qnote" id="qnote-income"></div>
+    <div class="notable" id="notable-income"></div>
+    <div class="grid" style="margin-top:18px;">
+      <div class="card full"><h3 id="rowtitle-income">Click a row above to chart its trend</h3>
+        <div class="chart" id="c-income-rowtrend"></div></div>
+      <div class="card full">
+        <div class="chart-head"><h3 id="income-bridge-title">Income bridge</h3>
+          <select id="income-bridge-sel" class="mini-sel"></select></div>
+        <div class="chart tall" id="c-income-waterfall"></div></div>
+      <div class="card full"><h3>Revenue &amp; Net Income (5-year)</h3>
+        <div class="chart" id="c-income-trend"></div></div>
+    </div>
+  </section>
+
+  <!-- BALANCE -->
+  <section class="panel" id="tab-balance">
+    <div class="insight" id="ins-balance"></div>
+    <div class="toolbar">
+      <span class="tlabel">View</span>
+      <div class="toggle" data-group="view" data-tab="balance">
+        <button data-v="values" class="active">Values $</button>
+        <button data-v="growth" title="YoY — vs the same period last year">Growth (YoY %)</button>
+        <button data-v="growthq" title="QoQ — vs the immediately prior period">Growth (QoQ %)</button>
+        <button data-v="pct">% of Assets</button>
+      </div>
+      <span class="tlabel">Period</span>
+      <div class="toggle" data-group="freq" data-tab="balance">
+        <button data-f="annual" class="active">Annual</button>
+        <button data-f="quarterly">Quarterly</button>
+      </div>
+      <span class="tlabel qonly" data-yeartab="balance" style="display:none;">Year</span>
+      <select class="mini-sel qonly" id="balance-year-sel" data-yeartab="balance" style="display:none;"></select>
+    </div>
+    <div class="viewsub" id="viewsub-balance"></div>
+    <div class="sheet-wrap"><div id="t-balance-sheet"></div></div>
+    <div class="qnote" id="qnote-balance"></div>
+    <div class="notable" id="notable-balance"></div>
+    <div class="grid" style="margin-top:18px;">
+      <div class="card full"><h3 id="rowtitle-balance">Click a row above to chart its trend</h3>
+        <div class="chart" id="c-balance-rowtrend"></div></div>
+      <div class="card full"><h3>Total Assets vs. Liabilities + Equity — 5-year (balances tie out)</h3>
+        <div class="chart tall" id="c-balance-identity"></div></div>
+      <div class="card full"><h3>Equity &amp; Cash (5-year)</h3>
+        <div class="chart" id="c-balance-trend"></div></div>
+    </div>
+  </section>
+
+  <!-- CASH FLOW -->
+  <section class="panel" id="tab-cashflow">
+    <div class="insight" id="ins-cashflow"></div>
+    <div class="note" id="note-cashflow"></div>
+    <div class="toolbar">
+      <span class="tlabel">View</span>
+      <div class="toggle" data-group="view" data-tab="cashflow">
+        <button data-v="values" class="active">Values $</button>
+        <button data-v="growth" title="YoY — vs the same period last year">Growth (YoY %)</button>
+        <button data-v="growthq" title="QoQ — vs the immediately prior period">Growth (QoQ %)</button>
+        <button data-v="pct">% of Revenue</button>
+      </div>
+      <span class="tlabel">Period</span>
+      <div class="toggle" data-group="freq" data-tab="cashflow">
+        <button data-f="annual" class="active">Annual</button>
+        <button data-f="quarterly">Quarterly</button>
+      </div>
+      <span class="tlabel qonly" data-yeartab="cashflow" style="display:none;">Year</span>
+      <select class="mini-sel qonly" id="cashflow-year-sel" data-yeartab="cashflow" style="display:none;"></select>
+    </div>
+    <div class="viewsub" id="viewsub-cashflow"></div>
+    <div class="sheet-wrap"><div id="t-cashflow-sheet"></div></div>
+    <div class="qnote" id="qnote-cashflow"></div>
+    <div class="notable" id="notable-cashflow"></div>
+    <div class="grid" style="margin-top:18px;">
+      <div class="card full"><h3 id="rowtitle-cashflow">Click a row above to chart its trend</h3>
+        <div class="chart" id="c-cashflow-rowtrend"></div></div>
+      <div class="card full">
+        <div class="chart-head"><h3 id="cashflow-bridge-title">Cash bridge</h3>
+          <select id="cashflow-bridge-sel" class="mini-sel"></select></div>
+        <div class="chart tall" id="c-cash-waterfall"></div></div>
+      <div class="card"><h3>Operating cash flow, CapEx &amp; Free Cash Flow (5-year)</h3>
+        <div class="chart" id="c-cash-fcf"></div></div>
+      <div class="card"><h3>Cash flow by activity (5-year)</h3>
+        <div class="chart" id="c-cash-activities"></div></div>
+    </div>
+  </section>
+
+  <!-- RATIOS -->
+  <section class="panel" id="tab-ratios">
+    <div class="insight" id="ins-ratios"></div>
+    <div class="kpis" id="kpi-ratios"></div>
+    <div class="sheet-wrap" style="margin-bottom:18px;"><div id="t-ratios-sheet"></div></div>
+    <div class="grid">
+      <div class="card full"><h3>Profitability margins (5-year)</h3>
+        <div class="chart" id="c-ratios-margins"></div></div>
+      <div class="card"><h3>Return on equity (5-year)</h3>
+        <div class="chart" id="c-ratios-roe"></div>
+        <div class="note" id="note-ratios"></div></div>
+      <div class="card"><h3>Current ratio &amp; Free cash flow (5-year)</h3>
+        <div class="chart" id="c-ratios-liquidity"></div></div>
+    </div>
+  </section>
+
+  <!-- VARIANCE -->
+  <section class="panel" id="tab-variance">
+    <div class="toolbar">
+      <span class="tlabel">Compare</span>
+      <div class="ctl"><label style="font-weight:600;color:var(--muted);">Period A</label>
+        <select id="sel-base"></select></div>
+      <div class="ctl"><label style="font-weight:600;color:var(--muted);">vs Period B</label>
+        <select id="sel-compare"></select></div>
+    </div>
+    <div class="insight" id="ins-variance"></div>
+    <div class="grid">
+      <div class="card"><h3>Variance table — <span class="yr-base"></span> vs <span class="yr-comp"></span></h3>
+        <div id="t-variance" style="overflow-x:auto;"></div></div>
+      <div class="card"><h3>YoY change by metric (%)</h3>
+        <div class="chart" id="c-variance-tornado"></div></div>
+    </div>
+  </section>
+
+  <footer>
+    <div>Data: SEC EDGAR XBRL (companyfacts) · FY2021–FY2025 · auto-updated weekly · Last updated 2026-06-19</div>
+    <div style="margin-top:6px;">
+      Built with Python (requests · pandas · SQLite · Plotly). Figures computed from
+      auditable SQL views over SEC XBRL facts. Source code &amp; methodology on
+      <a href="https://github.com/your-username/automated-3-statement-dashboard">GitHub</a>.
+    </div>
+  </footer>
+</div>
+
+<script>
+const DATA = {"meta": {"ticker": "AAPL", "entity": "Apple Inc."}, "years": [2021, 2022, 2023, 2024, 2025], "metrics": {"2021": {"revenue": 365817000000.0, "cogs": 212981000000.0, "gross_profit": 152836000000.0, "operating_income": 108949000000.0, "net_income": 94680000000.0, "total_assets": 351002000000.0, "current_assets": 134836000000.0, "cash": 34940000000.0, "total_liabilities": 287912000000.0, "current_liabilities": 125481000000.0, "total_equity": 63090000000.0, "operating_cf": 104038000000.0, "investing_cf": -14545000000.0, "financing_cf": -93353000000.0, "capex": 11085000000.0}, "2022": {"revenue": 394328000000.0, "cogs": 223546000000.0, "gross_profit": 170782000000.0, "operating_income": 119437000000.0, "net_income": 99803000000.0, "total_assets": 352755000000.0, "current_assets": 135405000000.0, "cash": 23646000000.0, "total_liabilities": 302083000000.0, "current_liabilities": 153982000000.0, "total_equity": 50672000000.0, "operating_cf": 122151000000.0, "investing_cf": -22354000000.0, "financing_cf": -110749000000.0, "capex": 10708000000.0}, "2023": {"revenue": 383285000000.0, "cogs": 214137000000.0, "gross_profit": 169148000000.0, "operating_income": 114301000000.0, "net_income": 96995000000.0, "total_assets": 352583000000.0, "current_assets": 143566000000.0, "cash": 29965000000.0, "total_liabilities": 290437000000.0, "current_liabilities": 145308000000.0, "total_equity": 62146000000.0, "operating_cf": 110543000000.0, "investing_cf": 3705000000.0, "financing_cf": -108488000000.0, "capex": 10959000000.0}, "2024": {"revenue": 391035000000.0, "cogs": 210352000000.0, "gross_profit": 180683000000.0, "operating_income": 123216000000.0, "net_income": 93736000000.0, "total_assets": 364980000000.0, "current_assets": 152987000000.0, "cash": 29943000000.0, "total_liabilities": 308030000000.0, "current_liabilities": 176392000000.0, "total_equity": 56950000000.0, "operating_cf": 118254000000.0, "investing_cf": 2935000000.0, "financing_cf": -121983000000.0, "capex": 9447000000.0}, "2025": {"revenue": 416161000000.0, "cogs": 220960000000.0, "gross_profit": 195201000000.0, "operating_income": 133050000000.0, "net_income": 112010000000.0, "total_assets": 359241000000.0, "current_assets": 147957000000.0, "cash": 35934000000.0, "total_liabilities": 285508000000.0, "current_liabilities": 165631000000.0, "total_equity": 73733000000.0, "operating_cf": 111482000000.0, "investing_cf": 15195000000.0, "financing_cf": -120686000000.0, "capex": 12715000000.0}}, "ratios": {"2021": {"gross_margin": 0.4177935962516778, "operating_margin": 0.29782377527561593, "net_margin": 0.2588179335569424, "roe": 1.5007132667617689, "current_ratio": 1.0745531195957954, "free_cash_flow": 92953000000.0}, "2022": {"gross_margin": 0.43309630561360085, "operating_margin": 0.30288744395528594, "net_margin": 0.2530964070519973, "roe": 1.9695887275023682, "current_ratio": 0.8793560286267226, "free_cash_flow": 111443000000.0}, "2023": {"gross_margin": 0.4413112957720756, "operating_margin": 0.2982141226502472, "net_margin": 0.2530623426432028, "roe": 1.5607601454639075, "current_ratio": 0.9880116717592975, "free_cash_flow": 99584000000.0}, "2024": {"gross_margin": 0.4620634981523393, "operating_margin": 0.31510222870075566, "net_margin": 0.23971255769943867, "roe": 1.6459350307287095, "current_ratio": 0.8673125765340832, "free_cash_flow": 108807000000.0}, "2025": {"gross_margin": 0.4690516410716045, "operating_margin": 0.31970799762591884, "net_margin": 0.2691506412181824, "roe": 1.5191298333175105, "current_ratio": 0.8932929222186667, "free_cash_flow": 98767000000.0}}, "cash_recon": {"2021": {"beginning_cash": 39789000000.0, "operating_cf": 104038000000.0, "investing_cf": -14545000000.0, "financing_cf": -93353000000.0, "computed_ending_cash": 35929000000.0, "reported_ending_cash": 35929000000.0}, "2022": {"beginning_cash": 35929000000.0, "operating_cf": 122151000000.0, "investing_cf": -22354000000.0, "financing_cf": -110749000000.0, "computed_ending_cash": 24977000000.0, "reported_ending_cash": 24977000000.0}, "2023": {"beginning_cash": 24977000000.0, "operating_cf": 110543000000.0, "investing_cf": 3705000000.0, "financing_cf": -108488000000.0, "computed_ending_cash": 30737000000.0, "reported_ending_cash": 30737000000.0}, "2024": {"beginning_cash": 30737000000.0, "operating_cf": 118254000000.0, "investing_cf": 2935000000.0, "financing_cf": -121983000000.0, "computed_ending_cash": 29943000000.0, "reported_ending_cash": 29943000000.0}, "2025": {"beginning_cash": 29943000000.0, "operating_cf": 111482000000.0, "investing_cf": 15195000000.0, "financing_cf": -120686000000.0, "computed_ending_cash": 35934000000.0, "reported_ending_cash": 35934000000.0}}, "statements": {"income": {"base_label": "% of Revenue", "annual": {"periods": [{"key": "2021", "label": "FY2021", "prev": null, "prevSeq": null}, {"key": "2022", "label": "FY2022", "prev": "2021", "prevSeq": "2021"}, {"key": "2023", "label": "FY2023", "prev": "2022", "prevSeq": "2022"}, {"key": "2024", "label": "FY2024", "prev": "2023", "prevSeq": "2023"}, {"key": "2025", "label": "FY2025", "prev": "2024", "prevSeq": "2024"}], "base_series": {"2021": 365817000000.0, "2022": 394328000000.0, "2023": 383285000000.0, "2024": 391035000000.0, "2025": 416161000000.0}, "rows": [{"order": 1, "line": "Revenue", "values": {"2021": 365817000000.0, "2022": 394328000000.0, "2023": 383285000000.0, "2024": 391035000000.0, "2025": 416161000000.0}}, {"order": 2, "line": "Cost of Revenue", "values": {"2021": 212981000000.0, "2022": 223546000000.0, "2023": 214137000000.0, "2024": 210352000000.0, "2025": 220960000000.0}}, {"order": 3, "line": "Gross Profit", "values": {"2021": 152836000000.0, "2022": 170782000000.0, "2023": 169148000000.0, "2024": 180683000000.0, "2025": 195201000000.0}}, {"order": 4, "line": "Operating Expenses", "values": {"2021": 43887000000.0, "2022": 51345000000.0, "2023": 54847000000.0, "2024": 57467000000.0, "2025": 62151000000.0}}, {"order": 5, "line": "Operating Income", "values": {"2021": 108949000000.0, "2022": 119437000000.0, "2023": 114301000000.0, "2024": 123216000000.0, "2025": 133050000000.0}}, {"order": 6, "line": "Pretax Income", "values": {"2021": 109207000000.0, "2022": 119103000000.0, "2023": 113736000000.0, "2024": 123485000000.0, "2025": 132729000000.0}}, {"order": 7, "line": "Income Tax", "values": {"2021": 14527000000.0, "2022": 19300000000.0, "2023": 16741000000.0, "2024": 29749000000.0, "2025": 20719000000.0}}, {"order": 8, "line": "Net Income", "values": {"2021": 94680000000.0, "2022": 99803000000.0, "2023": 96995000000.0, "2024": 93736000000.0, "2025": 112010000000.0}}]}, "quarterly": {"periods": [{"key": "2021Q1", "label": "Q1 FY21", "fy": 2021, "q": 1, "prev": null, "prevSeq": null}, {"key": "2021Q2", "label": "Q2 FY21", "fy": 2021, "q": 2, "prev": null, "prevSeq": "2021Q1"}, {"key": "2021Q3", "label": "Q3 FY21", "fy": 2021, "q": 3, "prev": null, "prevSeq": "2021Q2"}, {"key": "2021Q4", "label": "Q4 FY21", "fy": 2021, "q": 4, "prev": null, "prevSeq": "2021Q3"}, {"key": "2022Q1", "label": "Q1 FY22", "fy": 2022, "q": 1, "prev": "2021Q1", "prevSeq": "2021Q4"}, {"key": "2022Q2", "label": "Q2 FY22", "fy": 2022, "q": 2, "prev": "2021Q2", "prevSeq": "2022Q1"}, {"key": "2022Q3", "label": "Q3 FY22", "fy": 2022, "q": 3, "prev": "2021Q3", "prevSeq": "2022Q2"}, {"key": "2022Q4", "label": "Q4 FY22", "fy": 2022, "q": 4, "prev": "2021Q4", "prevSeq": "2022Q3"}, {"key": "2023Q1", "label": "Q1 FY23", "fy": 2023, "q": 1, "prev": "2022Q1", "prevSeq": "2022Q4"}, {"key": "2023Q2", "label": "Q2 FY23", "fy": 2023, "q": 2, "prev": "2022Q2", "prevSeq": "2023Q1"}, {"key": "2023Q3", "label": "Q3 FY23", "fy": 2023, "q": 3, "prev": "2022Q3", "prevSeq": "2023Q2"}, {"key": "2023Q4", "label": "Q4 FY23", "fy": 2023, "q": 4, "prev": "2022Q4", "prevSeq": "2023Q3"}, {"key": "2024Q1", "label": "Q1 FY24", "fy": 2024, "q": 1, "prev": "2023Q1", "prevSeq": "2023Q4"}, {"key": "2024Q2", "label": "Q2 FY24", "fy": 2024, "q": 2, "prev": "2023Q2", "prevSeq": "2024Q1"}, {"key": "2024Q3", "label": "Q3 FY24", "fy": 2024, "q": 3, "prev": "2023Q3", "prevSeq": "2024Q2"}, {"key": "2024Q4", "label": "Q4 FY24", "fy": 2024, "q": 4, "prev": "2023Q4", "prevSeq": "2024Q3"}, {"key": "2025Q1", "label": "Q1 FY25", "fy": 2025, "q": 1, "prev": "2024Q1", "prevSeq": "2024Q4"}, {"key": "2025Q2", "label": "Q2 FY25", "fy": 2025, "q": 2, "prev": "2024Q2", "prevSeq": "2025Q1"}, {"key": "2025Q3", "label": "Q3 FY25", "fy": 2025, "q": 3, "prev": "2024Q3", "prevSeq": "2025Q2"}, {"key": "2025Q4", "label": "Q4 FY25", "fy": 2025, "q": 4, "prev": "2024Q4", "prevSeq": "2025Q3"}, {"key": "2026Q1", "label": "Q1 FY26", "fy": 2026, "q": 1, "prev": "2025Q1", "prevSeq": "2025Q4"}, {"key": "2026Q2", "label": "Q2 FY26", "fy": 2026, "q": 2, "prev": "2025Q2", "prevSeq": "2026Q1"}], "rows": [{"order": 1, "line": "Revenue", "values": {"2021Q1": 111439000000.0, "2021Q2": 89584000000.0, "2021Q3": 81434000000.0, "2021Q4": 83360000000.0, "2022Q1": 123945000000.0, "2022Q2": 97278000000.0, "2022Q3": 82959000000.0, "2022Q4": 90146000000.0, "2023Q1": 117154000000.0, "2023Q2": 94836000000.0, "2023Q3": 81797000000.0, "2023Q4": 89498000000.0, "2024Q1": 119575000000.0, "2024Q2": 90753000000.0, "2024Q3": 85777000000.0, "2024Q4": 94930000000.0, "2025Q1": 124300000000.0, "2025Q2": 95359000000.0, "2025Q3": 94036000000.0, "2025Q4": 102466000000.0, "2026Q1": 143756000000.0, "2026Q2": 111184000000.0}}, {"order": 2, "line": "Cost of Revenue", "values": {"2021Q1": 67111000000.0, "2021Q2": 51505000000.0, "2021Q3": 46179000000.0, "2021Q4": 48186000000.0, "2022Q1": 69702000000.0, "2022Q2": 54719000000.0, "2022Q3": 47074000000.0, "2022Q4": 52051000000.0, "2023Q1": 66822000000.0, "2023Q2": 52860000000.0, "2023Q3": 45384000000.0, "2023Q4": 49071000000.0, "2024Q1": 64720000000.0, "2024Q2": 48482000000.0, "2024Q3": 46099000000.0, "2024Q4": 51051000000.0, "2025Q1": 66025000000.0, "2025Q2": 50492000000.0, "2025Q3": 50318000000.0, "2025Q4": 54125000000.0, "2026Q1": 74525000000.0, "2026Q2": 56403000000.0}}, {"order": 3, "line": "Gross Profit", "values": {"2021Q1": 44328000000.0, "2021Q2": 38079000000.0, "2021Q3": 35255000000.0, "2021Q4": 35174000000.0, "2022Q1": 54243000000.0, "2022Q2": 42559000000.0, "2022Q3": 35885000000.0, "2022Q4": 38095000000.0, "2023Q1": 50332000000.0, "2023Q2": 41976000000.0, "2023Q3": 36413000000.0, "2023Q4": 40427000000.0, "2024Q1": 54855000000.0, "2024Q2": 42271000000.0, "2024Q3": 39678000000.0, "2024Q4": 43879000000.0, "2025Q1": 58275000000.0, "2025Q2": 44867000000.0, "2025Q3": 43718000000.0, "2025Q4": 48341000000.0, "2026Q1": 69231000000.0, "2026Q2": 54781000000.0}}, {"order": 4, "line": "Operating Expenses", "values": {"2021Q1": 10794000000.0, "2021Q2": 10576000000.0, "2021Q3": 11129000000.0, "2021Q4": 11388000000.0, "2022Q1": 12755000000.0, "2022Q2": 12580000000.0, "2022Q3": 12809000000.0, "2022Q4": 13201000000.0, "2023Q1": 14316000000.0, "2023Q2": 13658000000.0, "2023Q3": 13415000000.0, "2023Q4": 13458000000.0, "2024Q1": 14482000000.0, "2024Q2": 14371000000.0, "2024Q3": 14326000000.0, "2024Q4": 14288000000.0, "2025Q1": 15443000000.0, "2025Q2": 15278000000.0, "2025Q3": 15516000000.0, "2025Q4": 15914000000.0, "2026Q1": 18379000000.0, "2026Q2": 18896000000.0}}, {"order": 5, "line": "Operating Income", "values": {"2021Q1": 33534000000.0, "2021Q2": 27503000000.0, "2021Q3": 24126000000.0, "2021Q4": 23786000000.0, "2022Q1": 41488000000.0, "2022Q2": 29979000000.0, "2022Q3": 23076000000.0, "2022Q4": 24894000000.0, "2023Q1": 36016000000.0, "2023Q2": 28318000000.0, "2023Q3": 22998000000.0, "2023Q4": 26969000000.0, "2024Q1": 40373000000.0, "2024Q2": 27900000000.0, "2024Q3": 25352000000.0, "2024Q4": 29591000000.0, "2025Q1": 42832000000.0, "2025Q2": 29589000000.0, "2025Q3": 28202000000.0, "2025Q4": 32427000000.0, "2026Q1": 50852000000.0, "2026Q2": 35885000000.0}}, {"order": 6, "line": "Pretax Income", "values": {"2021Q1": 33579000000.0, "2021Q2": 28011000000.0, "2021Q3": 24369000000.0, "2021Q4": 23248000000.0, "2022Q1": 41241000000.0, "2022Q2": 30139000000.0, "2022Q3": 23066000000.0, "2022Q4": 24657000000.0, "2023Q1": 35623000000.0, "2023Q2": 28382000000.0, "2023Q3": 22733000000.0, "2023Q4": 26998000000.0, "2024Q1": 40323000000.0, "2024Q2": 28058000000.0, "2024Q3": 25494000000.0, "2024Q4": 29610000000.0, "2025Q1": 42584000000.0, "2025Q2": 29310000000.0, "2025Q3": 28031000000.0, "2025Q4": 32804000000.0, "2026Q1": 51002000000.0, "2026Q2": 35833000000.0}}, {"order": 7, "line": "Income Tax", "values": {"2021Q1": 4824000000.0, "2021Q2": 4381000000.0, "2021Q3": 2625000000.0, "2021Q4": 2697000000.0, "2022Q1": 6611000000.0, "2022Q2": 5129000000.0, "2022Q3": 3624000000.0, "2022Q4": 3936000000.0, "2023Q1": 5625000000.0, "2023Q2": 4222000000.0, "2023Q3": 2852000000.0, "2023Q4": 4042000000.0, "2024Q1": 6407000000.0, "2024Q2": 4422000000.0, "2024Q3": 4046000000.0, "2024Q4": 14874000000.0, "2025Q1": 6254000000.0, "2025Q2": 4530000000.0, "2025Q3": 4597000000.0, "2025Q4": 5338000000.0, "2026Q1": 8905000000.0, "2026Q2": 6255000000.0}}, {"order": 8, "line": "Net Income", "values": {"2021Q1": 28755000000.0, "2021Q2": 23630000000.0, "2021Q3": 21744000000.0, "2021Q4": 20551000000.0, "2022Q1": 34630000000.0, "2022Q2": 25010000000.0, "2022Q3": 19442000000.0, "2022Q4": 20721000000.0, "2023Q1": 29998000000.0, "2023Q2": 24160000000.0, "2023Q3": 19881000000.0, "2023Q4": 22956000000.0, "2024Q1": 33916000000.0, "2024Q2": 23636000000.0, "2024Q3": 21448000000.0, "2024Q4": 14736000000.0, "2025Q1": 36330000000.0, "2025Q2": 24780000000.0, "2025Q3": 23434000000.0, "2025Q4": 27466000000.0, "2026Q1": 42097000000.0, "2026Q2": 29578000000.0}}], "base_series": {"2021Q1": 111439000000.0, "2021Q2": 89584000000.0, "2021Q3": 81434000000.0, "2021Q4": 83360000000.0, "2022Q1": 123945000000.0, "2022Q2": 97278000000.0, "2022Q3": 82959000000.0, "2022Q4": 90146000000.0, "2023Q1": 117154000000.0, "2023Q2": 94836000000.0, "2023Q3": 81797000000.0, "2023Q4": 89498000000.0, "2024Q1": 119575000000.0, "2024Q2": 90753000000.0, "2024Q3": 85777000000.0, "2024Q4": 94930000000.0, "2025Q1": 124300000000.0, "2025Q2": 95359000000.0, "2025Q3": 94036000000.0, "2025Q4": 102466000000.0, "2026Q1": 143756000000.0, "2026Q2": 111184000000.0}}}, "balance": {"base_label": "% of Assets", "annual": {"periods": [{"key": "2021", "label": "FY2021", "prev": null, "prevSeq": null}, {"key": "2022", "label": "FY2022", "prev": "2021", "prevSeq": "2021"}, {"key": "2023", "label": "FY2023", "prev": "2022", "prevSeq": "2022"}, {"key": "2024", "label": "FY2024", "prev": "2023", "prevSeq": "2023"}, {"key": "2025", "label": "FY2025", "prev": "2024", "prevSeq": "2024"}], "base_series": {"2021": 351002000000.0, "2022": 352755000000.0, "2023": 352583000000.0, "2024": 364980000000.0, "2025": 359241000000.0}, "rows": [{"order": 1, "line": "Total Assets", "values": {"2021": 351002000000.0, "2022": 352755000000.0, "2023": 352583000000.0, "2024": 364980000000.0, "2025": 359241000000.0}}, {"order": 2, "line": "Current Assets", "values": {"2021": 134836000000.0, "2022": 135405000000.0, "2023": 143566000000.0, "2024": 152987000000.0, "2025": 147957000000.0}}, {"order": 3, "line": "Cash & Equivalents", "values": {"2021": 34940000000.0, "2022": 23646000000.0, "2023": 29965000000.0, "2024": 29943000000.0, "2025": 35934000000.0}}, {"order": 4, "line": "Total Liabilities", "values": {"2021": 287912000000.0, "2022": 302083000000.0, "2023": 290437000000.0, "2024": 308030000000.0, "2025": 285508000000.0}}, {"order": 5, "line": "Current Liabilities", "values": {"2021": 125481000000.0, "2022": 153982000000.0, "2023": 145308000000.0, "2024": 176392000000.0, "2025": 165631000000.0}}, {"order": 6, "line": "Total Equity", "values": {"2021": 63090000000.0, "2022": 50672000000.0, "2023": 62146000000.0, "2024": 56950000000.0, "2025": 73733000000.0}}]}, "quarterly": {"periods": [{"key": "2021Q1", "label": "Q1 FY21", "fy": 2021, "q": 1, "prev": null, "prevSeq": null}, {"key": "2021Q2", "label": "Q2 FY21", "fy": 2021, "q": 2, "prev": null, "prevSeq": "2021Q1"}, {"key": "2021Q3", "label": "Q3 FY21", "fy": 2021, "q": 3, "prev": null, "prevSeq": "2021Q2"}, {"key": "2021Q4", "label": "Q4 FY21", "fy": 2021, "q": 4, "prev": null, "prevSeq": "2021Q3"}, {"key": "2022Q1", "label": "Q1 FY22", "fy": 2022, "q": 1, "prev": "2021Q1", "prevSeq": "2021Q4"}, {"key": "2022Q2", "label": "Q2 FY22", "fy": 2022, "q": 2, "prev": "2021Q2", "prevSeq": "2022Q1"}, {"key": "2022Q3", "label": "Q3 FY22", "fy": 2022, "q": 3, "prev": "2021Q3", "prevSeq": "2022Q2"}, {"key": "2022Q4", "label": "Q4 FY22", "fy": 2022, "q": 4, "prev": "2021Q4", "prevSeq": "2022Q3"}, {"key": "2023Q1", "label": "Q1 FY23", "fy": 2023, "q": 1, "prev": "2022Q1", "prevSeq": "2022Q4"}, {"key": "2023Q2", "label": "Q2 FY23", "fy": 2023, "q": 2, "prev": "2022Q2", "prevSeq": "2023Q1"}, {"key": "2023Q3", "label": "Q3 FY23", "fy": 2023, "q": 3, "prev": "2022Q3", "prevSeq": "2023Q2"}, {"key": "2023Q4", "label": "Q4 FY23", "fy": 2023, "q": 4, "prev": "2022Q4", "prevSeq": "2023Q3"}, {"key": "2024Q1", "label": "Q1 FY24", "fy": 2024, "q": 1, "prev": "2023Q1", "prevSeq": "2023Q4"}, {"key": "2024Q2", "label": "Q2 FY24", "fy": 2024, "q": 2, "prev": "2023Q2", "prevSeq": "2024Q1"}, {"key": "2024Q3", "label": "Q3 FY24", "fy": 2024, "q": 3, "prev": "2023Q3", "prevSeq": "2024Q2"}, {"key": "2024Q4", "label": "Q4 FY24", "fy": 2024, "q": 4, "prev": "2023Q4", "prevSeq": "2024Q3"}, {"key": "2025Q1", "label": "Q1 FY25", "fy": 2025, "q": 1, "prev": "2024Q1", "prevSeq": "2024Q4"}, {"key": "2025Q2", "label": "Q2 FY25", "fy": 2025, "q": 2, "prev": "2024Q2", "prevSeq": "2025Q1"}, {"key": "2025Q3", "label": "Q3 FY25", "fy": 2025, "q": 3, "prev": "2024Q3", "prevSeq": "2025Q2"}, {"key": "2025Q4", "label": "Q4 FY25", "fy": 2025, "q": 4, "prev": "2024Q4", "prevSeq": "2025Q3"}, {"key": "2026Q1", "label": "Q1 FY26", "fy": 2026, "q": 1, "prev": "2025Q1", "prevSeq": "2025Q4"}, {"key": "2026Q2", "label": "Q2 FY26", "fy": 2026, "q": 2, "prev": "2025Q2", "prevSeq": "2026Q1"}], "rows": [{"order": 1, "line": "Total Assets", "values": {"2021Q1": 354054000000.0, "2021Q2": 337158000000.0, "2021Q3": 329840000000.0, "2021Q4": 351002000000.0, "2022Q1": 381191000000.0, "2022Q2": 350662000000.0, "2022Q3": 336309000000.0, "2022Q4": 352755000000.0, "2023Q1": 346747000000.0, "2023Q2": 332160000000.0, "2023Q3": 335038000000.0, "2023Q4": 352583000000.0, "2024Q1": 353514000000.0, "2024Q2": 337411000000.0, "2024Q3": 331612000000.0, "2024Q4": 364980000000.0, "2025Q1": 344085000000.0, "2025Q2": 331233000000.0, "2025Q3": 331495000000.0, "2025Q4": 359241000000.0, "2026Q1": 379297000000.0, "2026Q2": 371082000000.0}}, {"order": 2, "line": "Current Assets", "values": {"2021Q1": 154106000000.0, "2021Q2": 121465000000.0, "2021Q3": 114423000000.0, "2021Q4": 134836000000.0, "2022Q1": 153154000000.0, "2022Q2": 118180000000.0, "2022Q3": 112292000000.0, "2022Q4": 135405000000.0, "2023Q1": 128777000000.0, "2023Q2": 112913000000.0, "2023Q3": 122659000000.0, "2023Q4": 143566000000.0, "2024Q1": 143692000000.0, "2024Q2": 128416000000.0, "2024Q3": 125435000000.0, "2024Q4": 152987000000.0, "2025Q1": 133240000000.0, "2025Q2": 118674000000.0, "2025Q3": 122491000000.0, "2025Q4": 147957000000.0, "2026Q1": 158104000000.0, "2026Q2": 144114000000.0}}, {"order": 3, "line": "Cash & Equivalents", "values": {"2021Q1": 36010000000.0, "2021Q2": 38466000000.0, "2021Q3": 34050000000.0, "2021Q4": 34940000000.0, "2022Q1": 37119000000.0, "2022Q2": 28098000000.0, "2022Q3": 27502000000.0, "2022Q4": 23646000000.0, "2023Q1": 20535000000.0, "2023Q2": 24687000000.0, "2023Q3": 28408000000.0, "2023Q4": 29965000000.0, "2024Q1": 40760000000.0, "2024Q2": 32695000000.0, "2024Q3": 25565000000.0, "2024Q4": 29943000000.0, "2025Q1": 30299000000.0, "2025Q2": 28162000000.0, "2025Q3": 36269000000.0, "2025Q4": 35934000000.0, "2026Q1": 45317000000.0, "2026Q2": 45572000000.0}}, {"order": 4, "line": "Total Liabilities", "values": {"2021Q1": 287830000000.0, "2021Q2": 267980000000.0, "2021Q3": 265560000000.0, "2021Q4": 287912000000.0, "2022Q1": 309259000000.0, "2022Q2": 283263000000.0, "2022Q3": 278202000000.0, "2022Q4": 302083000000.0, "2023Q1": 290020000000.0, "2023Q2": 270002000000.0, "2023Q3": 274764000000.0, "2023Q4": 290437000000.0, "2024Q1": 279414000000.0, "2024Q2": 263217000000.0, "2024Q3": 264904000000.0, "2024Q4": 308030000000.0, "2025Q1": 277327000000.0, "2025Q2": 264437000000.0, "2025Q3": 265665000000.0, "2025Q4": 285508000000.0, "2026Q1": 291107000000.0, "2026Q2": 264591000000.0}}, {"order": 5, "line": "Current Liabilities", "values": {"2021Q1": 132507000000.0, "2021Q2": 106385000000.0, "2021Q3": 107754000000.0, "2021Q4": 125481000000.0, "2022Q1": 147574000000.0, "2022Q2": 127508000000.0, "2022Q3": 129873000000.0, "2022Q4": 153982000000.0, "2023Q1": 137286000000.0, "2023Q2": 120075000000.0, "2023Q3": 124963000000.0, "2023Q4": 145308000000.0, "2024Q1": 133973000000.0, "2024Q2": 123822000000.0, "2024Q3": 131624000000.0, "2024Q4": 176392000000.0, "2025Q1": 144365000000.0, "2025Q2": 144571000000.0, "2025Q3": 141120000000.0, "2025Q4": 165631000000.0, "2026Q1": 162367000000.0, "2026Q2": 134641000000.0}}, {"order": 6, "line": "Total Equity", "values": {"2021Q1": 66224000000.0, "2021Q2": 69178000000.0, "2021Q3": 64280000000.0, "2021Q4": 63090000000.0, "2022Q1": 71932000000.0, "2022Q2": 67399000000.0, "2022Q3": 58107000000.0, "2022Q4": 50672000000.0, "2023Q1": 56727000000.0, "2023Q2": 62158000000.0, "2023Q3": 60274000000.0, "2023Q4": 62146000000.0, "2024Q1": 74100000000.0, "2024Q2": 74194000000.0, "2024Q3": 66708000000.0, "2024Q4": 56950000000.0, "2025Q1": 66758000000.0, "2025Q2": 66796000000.0, "2025Q3": 65830000000.0, "2025Q4": 73733000000.0, "2026Q1": 88190000000.0, "2026Q2": 106491000000.0}}], "base_series": {"2021Q1": 354054000000.0, "2021Q2": 337158000000.0, "2021Q3": 329840000000.0, "2021Q4": 351002000000.0, "2022Q1": 381191000000.0, "2022Q2": 350662000000.0, "2022Q3": 336309000000.0, "2022Q4": 352755000000.0, "2023Q1": 346747000000.0, "2023Q2": 332160000000.0, "2023Q3": 335038000000.0, "2023Q4": 352583000000.0, "2024Q1": 353514000000.0, "2024Q2": 337411000000.0, "2024Q3": 331612000000.0, "2024Q4": 364980000000.0, "2025Q1": 344085000000.0, "2025Q2": 331233000000.0, "2025Q3": 331495000000.0, "2025Q4": 359241000000.0, "2026Q1": 379297000000.0, "2026Q2": 371082000000.0}}}, "cashflow": {"base_label": "% of Revenue", "annual": {"periods": [{"key": "2021", "label": "FY2021", "prev": null, "prevSeq": null}, {"key": "2022", "label": "FY2022", "prev": "2021", "prevSeq": "2021"}, {"key": "2023", "label": "FY2023", "prev": "2022", "prevSeq": "2022"}, {"key": "2024", "label": "FY2024", "prev": "2023", "prevSeq": "2023"}, {"key": "2025", "label": "FY2025", "prev": "2024", "prevSeq": "2024"}], "base_series": {"2021": 365817000000.0, "2022": 394328000000.0, "2023": 383285000000.0, "2024": 391035000000.0, "2025": 416161000000.0}, "rows": [{"order": 1, "line": "Net Income", "values": {"2021": 94680000000.0, "2022": 99803000000.0, "2023": 96995000000.0, "2024": 93736000000.0, "2025": 112010000000.0}}, {"order": 2, "line": "Operating Cash Flow", "values": {"2021": 104038000000.0, "2022": 122151000000.0, "2023": 110543000000.0, "2024": 118254000000.0, "2025": 111482000000.0}}, {"order": 3, "line": "Investing Cash Flow", "values": {"2021": -14545000000.0, "2022": -22354000000.0, "2023": 3705000000.0, "2024": 2935000000.0, "2025": 15195000000.0}}, {"order": 4, "line": "Financing Cash Flow", "values": {"2021": -93353000000.0, "2022": -110749000000.0, "2023": -108488000000.0, "2024": -121983000000.0, "2025": -120686000000.0}}, {"order": 5, "line": "Capital Expenditures", "values": {"2021": 11085000000.0, "2022": 10708000000.0, "2023": 10959000000.0, "2024": 9447000000.0, "2025": 12715000000.0}}, {"order": 6, "line": "Net Change in Cash (reported)", "values": {"2021": -3860000000.0, "2022": -10952000000.0, "2023": 5760000000.0, "2024": -794000000.0, "2025": 5991000000.0}}]}, "quarterly": {"periods": [{"key": "2021Q1", "label": "Q1 FY21", "fy": 2021, "q": 1, "prev": null, "prevSeq": null}, {"key": "2021Q2", "label": "Q2 FY21", "fy": 2021, "q": 2, "prev": null, "prevSeq": "2021Q1"}, {"key": "2021Q3", "label": "Q3 FY21", "fy": 2021, "q": 3, "prev": null, "prevSeq": "2021Q2"}, {"key": "2021Q4", "label": "Q4 FY21", "fy": 2021, "q": 4, "prev": null, "prevSeq": "2021Q3"}, {"key": "2022Q1", "label": "Q1 FY22", "fy": 2022, "q": 1, "prev": "2021Q1", "prevSeq": "2021Q4"}, {"key": "2022Q2", "label": "Q2 FY22", "fy": 2022, "q": 2, "prev": "2021Q2", "prevSeq": "2022Q1"}, {"key": "2022Q3", "label": "Q3 FY22", "fy": 2022, "q": 3, "prev": "2021Q3", "prevSeq": "2022Q2"}, {"key": "2022Q4", "label": "Q4 FY22", "fy": 2022, "q": 4, "prev": "2021Q4", "prevSeq": "2022Q3"}, {"key": "2023Q1", "label": "Q1 FY23", "fy": 2023, "q": 1, "prev": "2022Q1", "prevSeq": "2022Q4"}, {"key": "2023Q2", "label": "Q2 FY23", "fy": 2023, "q": 2, "prev": "2022Q2", "prevSeq": "2023Q1"}, {"key": "2023Q3", "label": "Q3 FY23", "fy": 2023, "q": 3, "prev": "2022Q3", "prevSeq": "2023Q2"}, {"key": "2023Q4", "label": "Q4 FY23", "fy": 2023, "q": 4, "prev": "2022Q4", "prevSeq": "2023Q3"}, {"key": "2024Q1", "label": "Q1 FY24", "fy": 2024, "q": 1, "prev": "2023Q1", "prevSeq": "2023Q4"}, {"key": "2024Q2", "label": "Q2 FY24", "fy": 2024, "q": 2, "prev": "2023Q2", "prevSeq": "2024Q1"}, {"key": "2024Q3", "label": "Q3 FY24", "fy": 2024, "q": 3, "prev": "2023Q3", "prevSeq": "2024Q2"}, {"key": "2024Q4", "label": "Q4 FY24", "fy": 2024, "q": 4, "prev": "2023Q4", "prevSeq": "2024Q3"}, {"key": "2025Q1", "label": "Q1 FY25", "fy": 2025, "q": 1, "prev": "2024Q1", "prevSeq": "2024Q4"}, {"key": "2025Q2", "label": "Q2 FY25", "fy": 2025, "q": 2, "prev": "2024Q2", "prevSeq": "2025Q1"}, {"key": "2025Q3", "label": "Q3 FY25", "fy": 2025, "q": 3, "prev": "2024Q3", "prevSeq": "2025Q2"}, {"key": "2025Q4", "label": "Q4 FY25", "fy": 2025, "q": 4, "prev": "2024Q4", "prevSeq": "2025Q3"}, {"key": "2026Q1", "label": "Q1 FY26", "fy": 2026, "q": 1, "prev": "2025Q1", "prevSeq": "2025Q4"}, {"key": "2026Q2", "label": "Q2 FY26", "fy": 2026, "q": 2, "prev": "2025Q2", "prevSeq": "2026Q1"}], "rows": [{"order": 1, "line": "Net Income", "values": {"2021Q1": 28755000000.0, "2021Q2": 23630000000.0, "2021Q3": 21744000000.0, "2021Q4": 20551000000.0, "2022Q1": 34630000000.0, "2022Q2": 25010000000.0, "2022Q3": 19442000000.0, "2022Q4": 20721000000.0, "2023Q1": 29998000000.0, "2023Q2": 24160000000.0, "2023Q3": 19881000000.0, "2023Q4": 22956000000.0, "2024Q1": 33916000000.0, "2024Q2": 23636000000.0, "2024Q3": 21448000000.0, "2024Q4": 14736000000.0, "2025Q1": 36330000000.0, "2025Q2": 24780000000.0, "2025Q3": 23434000000.0, "2025Q4": 27466000000.0, "2026Q1": 42097000000.0, "2026Q2": 29578000000.0}}, {"order": 2, "line": "Operating Cash Flow", "values": {"2021Q1": 38763000000.0, "2021Q2": 23981000000.0, "2021Q3": 21094000000.0, "2021Q4": 20200000000.0, "2022Q1": 46966000000.0, "2022Q2": 28166000000.0, "2022Q3": 22892000000.0, "2022Q4": 24127000000.0, "2023Q1": 34005000000.0, "2023Q2": 28560000000.0, "2023Q3": 26380000000.0, "2023Q4": 21598000000.0, "2024Q1": 39895000000.0, "2024Q2": 22690000000.0, "2024Q3": 28858000000.0, "2024Q4": 26811000000.0, "2025Q1": 29935000000.0, "2025Q2": 23952000000.0, "2025Q3": 27867000000.0, "2025Q4": 29728000000.0, "2026Q1": 53925000000.0, "2026Q2": 28702000000.0}}, {"order": 3, "line": "Investing Cash Flow", "values": {"2021Q1": -8584000000.0, "2021Q2": -10368000000.0, "2021Q3": 3572000000.0, "2021Q4": 835000000.0, "2022Q1": -16106000000.0, "2022Q2": -9265000000.0, "2022Q3": 4234000000.0, "2022Q4": -1217000000.0, "2023Q1": -1445000000.0, "2023Q2": 2319000000.0, "2023Q3": 437000000.0, "2023Q4": 2394000000.0, "2024Q1": 1927000000.0, "2024Q2": -310000000.0, "2024Q3": -127000000.0, "2024Q4": 1445000000.0, "2025Q1": 9792000000.0, "2025Q2": 2917000000.0, "2025Q3": 5073000000.0, "2025Q4": -2587000000.0, "2026Q1": -4886000000.0, "2026Q2": -6168000000.0}}, {"order": 4, "line": "Financing Cash Flow", "values": {"2021Q1": -32249000000.0, "2021Q2": -11326000000.0, "2021Q3": -29396000000.0, "2021Q4": -20382000000.0, "2022Q1": -28159000000.0, "2022Q2": -28351000000.0, "2022Q3": -27445000000.0, "2022Q4": -26794000000.0, "2023Q1": -35563000000.0, "2023Q2": -25724000000.0, "2023Q3": -24048000000.0, "2023Q4": -23153000000.0, "2024Q1": -30585000000.0, "2024Q2": -30433000000.0, "2024Q3": -36017000000.0, "2024Q4": -24948000000.0, "2025Q1": -39371000000.0, "2025Q2": -29006000000.0, "2025Q3": -24833000000.0, "2025Q4": -27476000000.0, "2026Q1": -39656000000.0, "2026Q2": -22279000000.0}}, {"order": 5, "line": "Capital Expenditures", "values": {"2021Q1": 3500000000.0, "2021Q2": 2269000000.0, "2021Q3": 2093000000.0, "2021Q4": 3223000000.0, "2022Q1": 2803000000.0, "2022Q2": 2514000000.0, "2022Q3": 2102000000.0, "2022Q4": 3289000000.0, "2023Q1": 3787000000.0, "2023Q2": 2916000000.0, "2023Q3": 2093000000.0, "2023Q4": 2163000000.0, "2024Q1": 2392000000.0, "2024Q2": 1996000000.0, "2024Q3": 2151000000.0, "2024Q4": 2908000000.0, "2025Q1": 2940000000.0, "2025Q2": 3071000000.0, "2025Q3": 3462000000.0, "2025Q4": 3242000000.0, "2026Q1": 2373000000.0, "2026Q2": 1971000000.0}}, {"order": 6, "line": "Net Change in Cash (reported)", "values": {"2021Q1": -2070000000.0, "2021Q2": 2287000000.0, "2021Q3": -4730000000.0, "2021Q4": 653000000.0, "2022Q1": 2701000000.0, "2022Q2": -9450000000.0, "2022Q3": -319000000.0, "2022Q4": -3884000000.0, "2023Q1": -3003000000.0, "2023Q2": 5155000000.0, "2023Q3": 2769000000.0, "2023Q4": 839000000.0, "2024Q1": 11237000000.0, "2024Q2": -8053000000.0, "2024Q3": -7286000000.0, "2024Q4": 3308000000.0, "2025Q1": 356000000.0, "2025Q2": -2137000000.0, "2025Q3": 8107000000.0, "2025Q4": -335000000.0, "2026Q1": 9383000000.0, "2026Q2": 255000000.0}}], "base_series": {"2021Q1": 111439000000.0, "2021Q2": 89584000000.0, "2021Q3": 81434000000.0, "2021Q4": 83360000000.0, "2022Q1": 123945000000.0, "2022Q2": 97278000000.0, "2022Q3": 82959000000.0, "2022Q4": 90146000000.0, "2023Q1": 117154000000.0, "2023Q2": 94836000000.0, "2023Q3": 81797000000.0, "2023Q4": 89498000000.0, "2024Q1": 119575000000.0, "2024Q2": 90753000000.0, "2024Q3": 85777000000.0, "2024Q4": 94930000000.0, "2025Q1": 124300000000.0, "2025Q2": 95359000000.0, "2025Q3": 94036000000.0, "2025Q4": 102466000000.0, "2026Q1": 143756000000.0, "2026Q2": 111184000000.0}}}}, "ratios_table": {"periods": [{"key": "2021", "label": "FY2021", "prev": null}, {"key": "2022", "label": "FY2022", "prev": "2021"}, {"key": "2023", "label": "FY2023", "prev": "2022"}, {"key": "2024", "label": "FY2024", "prev": "2023"}, {"key": "2025", "label": "FY2025", "prev": "2024"}], "rows": [{"label": "Gross Margin", "key": "gross_margin", "fmt": "pct", "values": {"2021": 0.4177935962516778, "2022": 0.43309630561360085, "2023": 0.4413112957720756, "2024": 0.4620634981523393, "2025": 0.4690516410716045}}, {"label": "Operating Margin", "key": "operating_margin", "fmt": "pct", "values": {"2021": 0.29782377527561593, "2022": 0.30288744395528594, "2023": 0.2982141226502472, "2024": 0.31510222870075566, "2025": 0.31970799762591884}}, {"label": "Net Margin", "key": "net_margin", "fmt": "pct", "values": {"2021": 0.2588179335569424, "2022": 0.2530964070519973, "2023": 0.2530623426432028, "2024": 0.23971255769943867, "2025": 0.2691506412181824}}, {"label": "Return on Equity", "key": "roe", "fmt": "pct", "values": {"2021": 1.5007132667617689, "2022": 1.9695887275023682, "2023": 1.5607601454639075, "2024": 1.6459350307287095, "2025": 1.5191298333175105}}, {"label": "Current Ratio", "key": "current_ratio", "fmt": "x", "values": {"2021": 1.0745531195957954, "2022": 0.8793560286267226, "2023": 0.9880116717592975, "2024": 0.8673125765340832, "2025": 0.8932929222186667}}, {"label": "Free Cash Flow", "key": "free_cash_flow", "fmt": "money", "values": {"2021": 92953000000.0, "2022": 111443000000.0, "2023": 99584000000.0, "2024": 108807000000.0, "2025": 98767000000.0}}]}, "quarter_years": [2026, 2025, 2024, 2023, 2022, 2021], "quarter_partial": [2026], "bridges": {"income": {"annual": {"2021": {"rev": 365817000000.0, "cogs": 212981000000.0, "gp": 152836000000.0, "opex": 43887000000.0, "oi": 108949000000.0, "ni": 94680000000.0}, "2022": {"rev": 394328000000.0, "cogs": 223546000000.0, "gp": 170782000000.0, "opex": 51345000000.0, "oi": 119437000000.0, "ni": 99803000000.0}, "2023": {"rev": 383285000000.0, "cogs": 214137000000.0, "gp": 169148000000.0, "opex": 54847000000.0, "oi": 114301000000.0, "ni": 96995000000.0}, "2024": {"rev": 391035000000.0, "cogs": 210352000000.0, "gp": 180683000000.0, "opex": 57467000000.0, "oi": 123216000000.0, "ni": 93736000000.0}, "2025": {"rev": 416161000000.0, "cogs": 220960000000.0, "gp": 195201000000.0, "opex": 62151000000.0, "oi": 133050000000.0, "ni": 112010000000.0}}, "quarterly": {"2021Q1": {"rev": 111439000000.0, "cogs": 67111000000.0, "gp": 44328000000.0, "opex": 10794000000.0, "oi": 33534000000.0, "ni": 28755000000.0}, "2021Q2": {"rev": 89584000000.0, "cogs": 51505000000.0, "gp": 38079000000.0, "opex": 10576000000.0, "oi": 27503000000.0, "ni": 23630000000.0}, "2021Q3": {"rev": 81434000000.0, "cogs": 46179000000.0, "gp": 35255000000.0, "opex": 11129000000.0, "oi": 24126000000.0, "ni": 21744000000.0}, "2021Q4": {"rev": 83360000000.0, "cogs": 48186000000.0, "gp": 35174000000.0, "opex": 11388000000.0, "oi": 23786000000.0, "ni": 20551000000.0}, "2022Q1": {"rev": 123945000000.0, "cogs": 69702000000.0, "gp": 54243000000.0, "opex": 12755000000.0, "oi": 41488000000.0, "ni": 34630000000.0}, "2022Q2": {"rev": 97278000000.0, "cogs": 54719000000.0, "gp": 42559000000.0, "opex": 12580000000.0, "oi": 29979000000.0, "ni": 25010000000.0}, "2022Q3": {"rev": 82959000000.0, "cogs": 47074000000.0, "gp": 35885000000.0, "opex": 12809000000.0, "oi": 23076000000.0, "ni": 19442000000.0}, "2022Q4": {"rev": 90146000000.0, "cogs": 52051000000.0, "gp": 38095000000.0, "opex": 13201000000.0, "oi": 24894000000.0, "ni": 20721000000.0}, "2023Q1": {"rev": 117154000000.0, "cogs": 66822000000.0, "gp": 50332000000.0, "opex": 14316000000.0, "oi": 36016000000.0, "ni": 29998000000.0}, "2023Q2": {"rev": 94836000000.0, "cogs": 52860000000.0, "gp": 41976000000.0, "opex": 13658000000.0, "oi": 28318000000.0, "ni": 24160000000.0}, "2023Q3": {"rev": 81797000000.0, "cogs": 45384000000.0, "gp": 36413000000.0, "opex": 13415000000.0, "oi": 22998000000.0, "ni": 19881000000.0}, "2023Q4": {"rev": 89498000000.0, "cogs": 49071000000.0, "gp": 40427000000.0, "opex": 13458000000.0, "oi": 26969000000.0, "ni": 22956000000.0}, "2024Q1": {"rev": 119575000000.0, "cogs": 64720000000.0, "gp": 54855000000.0, "opex": 14482000000.0, "oi": 40373000000.0, "ni": 33916000000.0}, "2024Q2": {"rev": 90753000000.0, "cogs": 48482000000.0, "gp": 42271000000.0, "opex": 14371000000.0, "oi": 27900000000.0, "ni": 23636000000.0}, "2024Q3": {"rev": 85777000000.0, "cogs": 46099000000.0, "gp": 39678000000.0, "opex": 14326000000.0, "oi": 25352000000.0, "ni": 21448000000.0}, "2024Q4": {"rev": 94930000000.0, "cogs": 51051000000.0, "gp": 43879000000.0, "opex": 14288000000.0, "oi": 29591000000.0, "ni": 14736000000.0}, "2025Q1": {"rev": 124300000000.0, "cogs": 66025000000.0, "gp": 58275000000.0, "opex": 15443000000.0, "oi": 42832000000.0, "ni": 36330000000.0}, "2025Q2": {"rev": 95359000000.0, "cogs": 50492000000.0, "gp": 44867000000.0, "opex": 15278000000.0, "oi": 29589000000.0, "ni": 24780000000.0}, "2025Q3": {"rev": 94036000000.0, "cogs": 50318000000.0, "gp": 43718000000.0, "opex": 15516000000.0, "oi": 28202000000.0, "ni": 23434000000.0}, "2025Q4": {"rev": 102466000000.0, "cogs": 54125000000.0, "gp": 48341000000.0, "opex": 15914000000.0, "oi": 32427000000.0, "ni": 27466000000.0}, "2026Q1": {"rev": 143756000000.0, "cogs": 74525000000.0, "gp": 69231000000.0, "opex": 18379000000.0, "oi": 50852000000.0, "ni": 42097000000.0}, "2026Q2": {"rev": 111184000000.0, "cogs": 56403000000.0, "gp": 54781000000.0, "opex": 18896000000.0, "oi": 35885000000.0, "ni": 29578000000.0}}}, "cash": {"annual": {"2021": {"beg": 39789000000.0, "cfo": 104038000000.0, "cfi": -14545000000.0, "cff": -93353000000.0, "end": 35929000000.0}, "2022": {"beg": 35929000000.0, "cfo": 122151000000.0, "cfi": -22354000000.0, "cff": -110749000000.0, "end": 24977000000.0}, "2023": {"beg": 24977000000.0, "cfo": 110543000000.0, "cfi": 3705000000.0, "cff": -108488000000.0, "end": 30737000000.0}, "2024": {"beg": 30737000000.0, "cfo": 118254000000.0, "cfi": 2935000000.0, "cff": -121983000000.0, "end": 29943000000.0}, "2025": {"beg": 29943000000.0, "cfo": 111482000000.0, "cfi": 15195000000.0, "cff": -120686000000.0, "end": 35934000000.0}}, "quarterly": {"2021Q1": {"beg": 39789000000.0, "cfo": 38763000000.0, "cfi": -8584000000.0, "cff": -32249000000.0, "end": 37719000000.0}, "2021Q2": {"beg": 37719000000.0, "cfo": 23981000000.0, "cfi": -10368000000.0, "cff": -11326000000.0, "end": 40006000000.0}, "2021Q3": {"beg": 40006000000.0, "cfo": 21094000000.0, "cfi": 3572000000.0, "cff": -29396000000.0, "end": 35276000000.0}, "2021Q4": {"beg": 35276000000.0, "cfo": 20200000000.0, "cfi": 835000000.0, "cff": -20382000000.0, "end": 35929000000.0}, "2022Q1": {"beg": 35929000000.0, "cfo": 46966000000.0, "cfi": -16106000000.0, "cff": -28159000000.0, "end": 38630000000.0}, "2022Q2": {"beg": 38630000000.0, "cfo": 28166000000.0, "cfi": -9265000000.0, "cff": -28351000000.0, "end": 29180000000.0}, "2022Q3": {"beg": 29180000000.0, "cfo": 22892000000.0, "cfi": 4234000000.0, "cff": -27445000000.0, "end": 28861000000.0}, "2022Q4": {"beg": 28861000000.0, "cfo": 24127000000.0, "cfi": -1217000000.0, "cff": -26794000000.0, "end": 24977000000.0}, "2023Q1": {"beg": 24977000000.0, "cfo": 34005000000.0, "cfi": -1445000000.0, "cff": -35563000000.0, "end": 21974000000.0}, "2023Q2": {"beg": 21974000000.0, "cfo": 28560000000.0, "cfi": 2319000000.0, "cff": -25724000000.0, "end": 27129000000.0}, "2023Q3": {"beg": 27129000000.0, "cfo": 26380000000.0, "cfi": 437000000.0, "cff": -24048000000.0, "end": 29898000000.0}, "2023Q4": {"beg": 29898000000.0, "cfo": 21598000000.0, "cfi": 2394000000.0, "cff": -23153000000.0, "end": 30737000000.0}, "2024Q1": {"beg": 30737000000.0, "cfo": 39895000000.0, "cfi": 1927000000.0, "cff": -30585000000.0, "end": 41974000000.0}, "2024Q2": {"beg": 41974000000.0, "cfo": 22690000000.0, "cfi": -310000000.0, "cff": -30433000000.0, "end": 33921000000.0}, "2024Q3": {"beg": 33921000000.0, "cfo": 28858000000.0, "cfi": -127000000.0, "cff": -36017000000.0, "end": 26635000000.0}, "2024Q4": {"beg": 26635000000.0, "cfo": 26811000000.0, "cfi": 1445000000.0, "cff": -24948000000.0, "end": 29943000000.0}, "2025Q1": {"beg": 29943000000.0, "cfo": 29935000000.0, "cfi": 9792000000.0, "cff": -39371000000.0, "end": 30299000000.0}, "2025Q2": {"beg": 30299000000.0, "cfo": 23952000000.0, "cfi": 2917000000.0, "cff": -29006000000.0, "end": 28162000000.0}, "2025Q3": {"beg": 28162000000.0, "cfo": 27867000000.0, "cfi": 5073000000.0, "cff": -24833000000.0, "end": 36269000000.0}, "2025Q4": {"beg": 36269000000.0, "cfo": 29728000000.0, "cfi": -2587000000.0, "cff": -27476000000.0, "end": 35934000000.0}, "2026Q1": {"beg": 35934000000.0, "cfo": 53925000000.0, "cfi": -4886000000.0, "cff": -39656000000.0, "end": 45317000000.0}, "2026Q2": {"beg": 45317000000.0, "cfo": 28702000000.0, "cfi": -6168000000.0, "cff": -22279000000.0, "end": 45572000000.0}}}}, "notable": {"income": {"annual": [{"statement": "income", "line": "Gross Profit", "periodKey": "2021", "period": "FY2021", "severity": 0.03358708890072731, "text": "Gross Profit was 41.8% of revenue in FY2021, well below its ~45.1% 4-year average."}, {"statement": "income", "line": "Cost of Revenue", "periodKey": "2021", "period": "FY2021", "severity": 0.03358708890072726, "text": "Cost of Revenue was 58.2% of revenue in FY2021, well above its ~54.9% 4-year average."}, {"statement": "income", "line": "Income Tax", "periodKey": "2022", "period": "FY2022", "severity": 0.03285606112755558, "text": "Income Tax rose 33% YoY in FY2022."}, {"statement": "income", "line": "Income Tax", "periodKey": "2024", "period": "FY2024", "severity": 0.030547878939424476, "text": "Income Tax was 7.6% of revenue in FY2024, well above its ~4.6% 4-year average."}, {"statement": "income", "line": "Gross Profit", "periodKey": "2025", "period": "FY2025", "severity": 0.030485467124181154, "text": "Gross Profit was 46.9% of revenue in FY2025, well above its ~43.9% 4-year average."}], "quarterly": [{"statement": "income", "line": "Income Tax", "periodKey": "2024Q4", "period": "Q4 FY24", "severity": 0.11336524745980935, "text": "Income Tax was 15.7% of revenue in Q4 FY24, well above its ~4.3% same-quarter average."}, {"statement": "income", "line": "Net Income", "periodKey": "2024Q4", "period": "Q4 FY24", "severity": 0.09500503030790694, "text": "Net Income was 15.5% of revenue in Q4 FY24, well below its ~25.0% same-quarter average."}, {"statement": "income", "line": "Cost of Revenue", "periodKey": "2021Q1", "period": "Q1 FY21", "severity": 0.05750628863898022, "text": "Cost of Revenue was 60.2% of revenue in Q1 FY21, well above its ~54.5% same-quarter average."}, {"statement": "income", "line": "Gross Profit", "periodKey": "2021Q1", "period": "Q1 FY21", "severity": 0.05750628863898016, "text": "Gross Profit was 39.8% of revenue in Q1 FY21, well below its ~45.5% same-quarter average."}, {"statement": "income", "line": "Net Income", "periodKey": "2025Q4", "period": "Q4 FY25", "severity": 0.04601961984317443, "text": "Net Income was 26.8% of revenue in Q4 FY25, well above its ~22.2% same-quarter average."}, {"statement": "income", "line": "Cost of Revenue", "periodKey": "2026Q2", "period": "Q2 FY26", "severity": 0.04441236010885907, "text": "Cost of Revenue was 50.7% of revenue in Q2 FY26, well below its ~55.2% same-quarter average."}, {"statement": "income", "line": "Gross Profit", "periodKey": "2026Q2", "period": "Q2 FY26", "severity": 0.04441236010885902, "text": "Gross Profit was 49.3% of revenue in Q2 FY26, well above its ~44.8% same-quarter average."}, {"statement": "income", "line": "Cost of Revenue", "periodKey": "2026Q1", "period": "Q1 FY26", "severity": 0.04306414997557706, "text": "Cost of Revenue was 51.8% of revenue in Q1 FY26, well below its ~56.1% same-quarter average."}, {"statement": "income", "line": "Gross Profit", "periodKey": "2026Q1", "period": "Q1 FY26", "severity": 0.043064149975577004, "text": "Gross Profit was 48.2% of revenue in Q1 FY26, well above its ~43.9% same-quarter average."}, {"statement": "income", "line": "Income Tax", "periodKey": "2026Q1", "period": "Q1 FY26", "severity": 0.04238887112248162, "text": "Income Tax rose 42% YoY in Q1 FY26."}]}, "balance": {"annual": [{"statement": "balance", "line": "Current Liabilities", "periodKey": "2021", "period": "FY2021", "severity": 0.09075312094587157, "text": "Current Liabilities was 35.7% of assets in FY2021, well below its ~44.8% 4-year average."}, {"statement": "balance", "line": "Current Liabilities", "periodKey": "2024", "period": "FY2024", "severity": 0.06649506117453169, "text": "Current Liabilities was 48.3% of assets in FY2024, well above its ~41.7% 4-year average."}, {"statement": "balance", "line": "Total Equity", "periodKey": "2025", "period": "FY2025", "severity": 0.04132557718332347, "text": "Total Equity was 20.5% of assets in FY2025, well above its ~16.4% 4-year average."}, {"statement": "balance", "line": "Total Liabilities", "periodKey": "2025", "period": "FY2025", "severity": 0.041325577183323414, "text": "Total Liabilities was 79.5% of assets in FY2025, well below its ~83.6% 4-year average."}, {"statement": "balance", "line": "Current Liabilities", "periodKey": "2025", "period": "FY2025", "severity": 0.03870248647454261, "text": "Current Liabilities was 46.1% of assets in FY2025, above its ~42.2% 4-year average."}], "quarterly": [{"statement": "balance", "line": "Current Liabilities", "periodKey": "2021Q4", "period": "Q4 FY21", "severity": 0.09075312094587157, "text": "Current Liabilities was 35.7% of assets in Q4 FY21, well below its ~44.8% same-quarter average."}, {"statement": "balance", "line": "Total Equity", "periodKey": "2026Q2", "period": "Q2 FY26", "severity": 0.08576066448368128, "text": "Total Equity was 28.7% of assets in Q2 FY26, well above its ~20.1% same-quarter average."}, {"statement": "balance", "line": "Total Liabilities", "periodKey": "2026Q2", "period": "Q2 FY26", "severity": 0.08576066448368125, "text": "Total Liabilities was 71.3% of assets in Q2 FY26, well below its ~79.9% same-quarter average."}, {"statement": "balance", "line": "Current Liabilities", "periodKey": "2025Q2", "period": "Q2 FY25", "severity": 0.0823705221380443, "text": "Current Liabilities was 43.6% of assets in Q2 FY25, well above its ~35.4% same-quarter average."}, {"statement": "balance", "line": "Current Liabilities", "periodKey": "2021Q3", "period": "Q3 FY21", "severity": 0.06876000923112657, "text": "Current Liabilities was 32.7% of assets in Q3 FY21, well below its ~39.5% same-quarter average."}, {"statement": "balance", "line": "Current Liabilities", "periodKey": "2024Q4", "period": "Q4 FY24", "severity": 0.06649506117453169, "text": "Current Liabilities was 48.3% of assets in Q4 FY24, well above its ~41.7% same-quarter average."}, {"statement": "balance", "line": "Current Liabilities", "periodKey": "2021Q2", "period": "Q2 FY21", "severity": 0.0627437952660368, "text": "Current Liabilities was 31.6% of assets in Q2 FY21, well below its ~37.8% same-quarter average."}, {"statement": "balance", "line": "Current Liabilities", "periodKey": "2025Q3", "period": "Q3 FY25", "severity": 0.05501763154452044, "text": "Current Liabilities was 42.6% of assets in Q3 FY25, well above its ~37.1% same-quarter average."}, {"statement": "balance", "line": "Cash & Equivalents", "periodKey": "2023Q1", "period": "Q1 FY23", "severity": 0.04516146459784478, "text": "Cash & Equivalents was 5.9% of assets in Q1 FY23, well below its ~10.4% same-quarter average."}, {"statement": "balance", "line": "Total Liabilities", "periodKey": "2026Q1", "period": "Q1 FY26", "severity": 0.043914749562043665, "text": "Total Liabilities was 76.7% of assets in Q1 FY26, well below its ~81.1% same-quarter average."}]}, "cashflow": {"annual": [{"statement": "cashflow", "line": "Net Change in Cash (reported)", "periodKey": "2024", "period": "FY2024", "severity": 0.11378472222222222, "text": "Net Change in Cash (reported) fell 114% YoY in FY2024."}, {"statement": "cashflow", "line": "Investing Cash Flow", "periodKey": "2022", "period": "FY2022", "severity": 0.06016988591792685, "text": "Investing Cash Flow was -5.7% of revenue in FY2022, well below its ~0.3% 4-year average."}, {"statement": "cashflow", "line": "Investing Cash Flow", "periodKey": "2025", "period": "FY2025", "severity": 0.05633156308674375, "text": "Investing Cash Flow was 3.7% of revenue in FY2025, well above its ~-2.0% 4-year average."}, {"statement": "cashflow", "line": "Investing Cash Flow", "periodKey": "2021", "period": "FY2021", "severity": 0.03900922273597125, "text": "Investing Cash Flow was -4.0% of revenue in FY2021, well below its ~-0.1% 4-year average."}, {"statement": "cashflow", "line": "Financing Cash Flow", "periodKey": "2021", "period": "FY2021", "severity": 0.03627213501573062, "text": "Financing Cash Flow was -25.5% of revenue in FY2021, well above its ~-29.1% 4-year average."}], "quarterly": [{"statement": "cashflow", "line": "Net Change in Cash (reported)", "periodKey": "2022Q1", "period": "Q1 FY22", "severity": 0.2304830917874396, "text": "Net Change in Cash (reported) rose 230% YoY in Q1 FY22."}, {"statement": "cashflow", "line": "Financing Cash Flow", "periodKey": "2021Q2", "period": "Q2 FY21", "severity": 0.1540882657326495, "text": "Financing Cash Flow was -12.6% of revenue in Q2 FY21, well above its ~-28.1% same-quarter average."}, {"statement": "cashflow", "line": "Investing Cash Flow", "periodKey": "2026Q1", "period": "Q1 FY26", "severity": 0.14989787581699346, "text": "Investing Cash Flow fell 150% YoY in Q1 FY26."}, {"statement": "cashflow", "line": "Investing Cash Flow", "periodKey": "2025Q1", "period": "Q1 FY25", "severity": 0.1262132225185869, "text": "Investing Cash Flow was 7.9% of revenue in Q1 FY25, well above its ~-4.7% same-quarter average."}, {"statement": "cashflow", "line": "Investing Cash Flow", "periodKey": "2022Q1", "period": "Q1 FY22", "severity": 0.12425304020460534, "text": "Investing Cash Flow was -13.0% of revenue in Q1 FY22, well below its ~-0.6% same-quarter average."}, {"statement": "cashflow", "line": "Net Change in Cash (reported)", "periodKey": "2023Q4", "period": "Q4 FY23", "severity": 0.12160144181256435, "text": "Net Change in Cash (reported) rose 122% YoY in Q4 FY23."}, {"statement": "cashflow", "line": "Net Change in Cash (reported)", "periodKey": "2025Q3", "period": "Q3 FY25", "severity": 0.11446621547884392, "text": "Net Change in Cash (reported) was 8.6% of revenue in Q3 FY25, well above its ~-2.8% same-quarter average."}, {"statement": "cashflow", "line": "Net Change in Cash (reported)", "periodKey": "2025Q4", "period": "Q4 FY25", "severity": 0.11012696493349457, "text": "Net Change in Cash (reported) fell 110% YoY in Q4 FY25."}, {"statement": "cashflow", "line": "Financing Cash Flow", "periodKey": "2024Q3", "period": "Q3 FY24", "severity": 0.1074207778362673, "text": "Financing Cash Flow was -42.0% of revenue in Q3 FY24, well below its ~-31.2% same-quarter average."}, {"statement": "cashflow", "line": "Operating Cash Flow", "periodKey": "2025Q1", "period": "Q1 FY25", "severity": 0.10432743707493139, "text": "Operating Cash Flow was 24.1% of revenue in Q1 FY25, well below its ~34.5% same-quarter average."}]}}, "curated": {"income|Income Tax|FY2024": {"explanation": "One-time ~$10.2B income-tax charge from the EU State Aid (Ireland) ruling, recorded in fiscal Q4 2024; raised the effective tax rate and cut net income despite higher revenue.", "source_url": "https://www.apple.com/newsroom/2024/10/apple-reports-fourth-quarter-results/"}, "income|Net Income|FY2024": {"explanation": "Net income fell despite higher revenue mainly due to a one-time ~$10.2B income-tax charge from the EU State Aid (Ireland) ruling recorded in fiscal Q4 2024.", "source_url": "https://www.apple.com/newsroom/2024/10/apple-reports-fourth-quarter-results/"}, "income|Revenue|FY2023": {"explanation": "Revenue fell 2.8% YoY - Apple's first annual decline since 2019 - on a strong US dollar, a ~27% drop in Mac sales, soft China demand, and no new iPad launch that year.", "source_url": "https://www.cnbc.com/2023/11/02/apple-aapl-earnings-q4-2023.html"}, "balance|Total Equity|FY2022": {"explanation": "Shareholders' equity fell to ~$50.7B because Apple repurchased $90.2B of stock in FY2022 (its largest buyback year to date). Buybacks reduce equity.", "source_url": "https://www.apple.com/newsroom/2022/10/apple-reports-fourth-quarter-results/"}, "ratios|Return on Equity|FY2022": {"explanation": "ROE spiked to ~197% because Apple's $90.2B of FY2022 buybacks shrank shareholders' equity to ~$50.7B; a smaller equity base inflates return on equity.", "source_url": "https://www.apple.com/newsroom/2022/10/apple-reports-fourth-quarter-results/"}}, "revisions": {}};
+const INSIGHTS = {"income": "FY2025 revenue of $416.2B grew 6.4% YoY, while net margin expanded 294 bps to 26.9%.", "balance": "FY2025 total assets of $359.2B were 79% funded by liabilities; shareholders' equity rose to $73.7B.", "cashflow": "FY2025 operating cash flow of $111.5B funded $12.7B of capex, leaving $98.8B of free cash flow.", "ratios": "Gross margin reached 46.9% in FY2025, up from 41.8% in FY2021; ROE of 152% reflects a small equity base relative to $112.0B of net income.", "income_note": "<span class=\"tag\">Note</span>FY2024 net income fell to $93.7B despite higher revenue, due to a one-time ~$10.2B income-tax charge from the EU State Aid (Ireland) ruling. Normalized, FY2024 net margin was ~26.6% (vs 24.0% reported), so part of the FY2025 margin expansion is a return to trend.", "ratios_note": "<span class=\"tag\">Note</span>ROE above 150% is not an error: sustained share buybacks have shrunk shareholders' equity to $73.7B, so $112.0B of net income sits on a small equity base.", "cashflow_note": "<span class=\"tag\">Note</span>FY2025 investing cash flow was positive ($15.2B) \u2014 not an error. It reflects net maturities and sales of Apple's marketable-securities portfolio exceeding new purchases and capex."};
+</script>
+<script>
+/* ===========================================================================
+   Dashboard interactivity (financial-platform pattern).
+
+   Each statement tab (Income / Balance / Cash Flow) is a spreadsheet table with
+   ALL periods as columns and a sticky first column. Two toggles redraw it:
+     View   : Values $ | Growth (YoY %) | % of Revenue/Assets
+     Period : Annual | Quarterly  (quarterly = standalone quarters as filed;
+              lines/quarters not filed standalone show "n/a" -- never derived)
+   Clicking a row charts that line's trend. Bridges/5-year charts sit below as
+   support. The Variance tab keeps the explicit Period A vs Period B comparator.
+   Every number comes from the SQL views baked into DATA at build time.
+   =========================================================================== */
+
+const COL = {
+  navy:'#1b2a4a', accent:'#2b6cb0', accent2:'#0e7490', muted:'#94a3b8',
+  pos:'#15803d', neg:'#b91c1c', grid:'#eef2f7'
+};
+const CONFIG = { responsive:true, displayModeBar:false };
+
+/* ----------------------------- formatters ------------------------------- */
+const bil = v => v / 1e9;
+function moneyB(b){
+  const s = b < 0 ? '-' : '';
+  return s + '$' + Math.abs(b).toLocaleString('en-US',
+    {minimumFractionDigits:1, maximumFractionDigits:1}) + 'B';
+}
+function pct1(f){ return (f*100).toLocaleString('en-US',
+  {minimumFractionDigits:1, maximumFractionDigits:1}) + '%'; }
+function pct0(f){ return Math.round(f*100).toLocaleString('en-US') + '%'; }
+function ratio2(v){ return v.toLocaleString('en-US',
+  {minimumFractionDigits:2, maximumFractionDigits:2}); }
+
+const YEARS = DATA.years;                 // [2021..2025]
+const YL = YEARS.map(y => 'FY' + y);
+const LAST = YEARS[YEARS.length - 1];     // latest fiscal year
+
+/* ------------------------- shared Plotly layout ------------------------- */
+function layout(extra){
+  return Object.assign({
+    font:{family:'-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif', size:12, color:'#334155'},
+    margin:{l:58, r:18, t:12, b:40},
+    paper_bgcolor:'rgba(0,0,0,0)', plot_bgcolor:'rgba(0,0,0,0)',
+    colorway:[COL.accent, COL.navy, COL.accent2, COL.muted],
+    hovermode:'closest', bargap:0.30,
+    legend:{orientation:'h', y:1.13, x:0, font:{size:11}},
+    xaxis:{gridcolor:COL.grid, zeroline:false, automargin:true},
+    yaxis:{gridcolor:COL.grid, zeroline:false, automargin:true}
+  }, extra || {});
+}
+function plot(id, traces, lay){
+  Plotly.newPlot(id, traces, lay, CONFIG);
+  document.getElementById(id).dataset.drawn = '1';
+}
+const M = y => DATA.metrics[y];
+
+/* ===================== SPREADSHEET STATEMENT TABLES ===================== */
+const STMT_TITLE = {income:'Income Statement', balance:'Balance Sheet', cashflow:'Cash Flow'};
+const VIEW = {income:'values', balance:'values', cashflow:'values'};
+const FREQ = {income:'annual', balance:'annual', cashflow:'annual'};
+const SEL  = {income:null, balance:null, cashflow:null};   // selected row (line)
+const QYEAR = {income:'last12', balance:'last12', cashflow:'last12'};   // quarterly year filter
+
+function blockOf(tab){ return DATA.statements[tab][FREQ[tab]]; }
+
+// Which period columns to show: all years (annual), or last-12 / one fiscal year (quarterly).
+function visiblePeriods(tab){
+  const all = blockOf(tab).periods;
+  if(FREQ[tab] === 'annual') return all;
+  if(QYEAR[tab] === 'last12') return all.slice(-12);
+  return all.filter(p => p.fy === +QYEAR[tab]);
+}
+// A quarter is DERIVED (from YTD) for income Q4 and for cash-flow Q2-Q4; balance never.
+function isDerived(tab, period){
+  if(FREQ[tab] !== 'quarterly' || !period) return false;
+  if(tab === 'income')   return period.q === 4;
+  if(tab === 'cashflow') return period.q >= 2;
+  return false;
+}
+const DERIV_TIP = 'Standalone quarter derived from year-to-date filings (Q1+Q2+Q3+Q4 = reported annual).';
+
+function cellByView(tab, line, valmap, period, view, baseS){
+  const v = valmap[line][period.key];
+  let content;
+  if(view === 'values'){
+    content = v==null ? '<span class="naq">n/a</span>' : moneyB(bil(v));
+  } else if(view === 'growth' || view === 'growthq'){
+    const pk = view === 'growth' ? period.prev : period.prevSeq;   // YoY vs QoQ
+    const vp = pk!=null ? valmap[line][pk] : null;
+    if(v==null || vp==null || vp===0){ content = '<span class="naq">–</span>'; }
+    else { const g=(v-vp)/Math.abs(vp); const cls=g>=0?'pos':'neg';
+           content = '<span class="chip '+cls+'">'+(g>=0?'+':'')+pct1(g)+'</span>'; }
+  } else {
+    const base = baseS ? baseS[period.key] : null;
+    content = (v==null||base==null||base===0) ? '<span class="naq">–</span>' : pct1(v/base);
+  }
+  return content + cellMarkers(tab, line, period);
+}
+
+/* ----------- variance markers (auto flags + curated notes) ------------- */
+const NOTABLE = {};   // tab -> {annual:{"line|key":text}, quarterly:{...}}
+function buildNotable(){
+  ['income','balance','cashflow'].forEach(tab=>{
+    NOTABLE[tab] = {annual:{}, quarterly:{}};
+    ['annual','quarterly'].forEach(mode=>{
+      ((DATA.notable[tab]||{})[mode]||[]).forEach(it=>{ NOTABLE[tab][mode][it.line+'|'+it.periodKey] = it.text; });
+    });
+  });
+}
+function escAttr(s){ return s.replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
+function cellMarkers(tab, line, period){
+  let mk = '';
+  const nm = NOTABLE[tab] && NOTABLE[tab][FREQ[tab]];     // undefined for ratios tab
+  const at = nm && nm[line+'|'+period.key];
+  if(at) mk += '<span class="cellflag" title="'+escAttr(at)+'"></span>';
+  const cur = DATA.curated[tab+'|'+line+'|'+period.label];
+  if(cur){
+    const tip = cur.explanation + (cur.source_url ? '  (source: '+cur.source_url+')' : '');
+    mk += '<span class="cellnote" title="'+escAttr(tip)+'">&#9432;</span>';
+  }
+  const rev = DATA.revisions && DATA.revisions[tab+'|'+line+'|'+period.label];
+  if(rev){
+    const tip = 'Revised from '+moneyB(bil(rev.old))+' to '+moneyB(bil(rev.new))+' on '+rev.date;
+    mk += '<span class="cellrev" title="'+escAttr(tip)+'">&#8635;</span>';
+  }
+  return mk;
+}
+function renderNotable(tab){
+  // Only notes whose period is currently in view (mode + year filter).
+  const visKeys = new Set(visiblePeriods(tab).map(p=>p.key));
+  const visLabels = new Set(visiblePeriods(tab).map(p=>p.label));
+  const items = ((DATA.notable[tab]||{})[FREQ[tab]]||[]).filter(it=>visKeys.has(it.periodKey));
+  const curated = Object.keys(DATA.curated).filter(k=>{
+    const p = k.split('|'); return p[0]===tab && visLabels.has(p[2]);
+  });
+  const box = document.getElementById('notable-'+tab);
+  if(!items.length && !curated.length){ box.innerHTML=''; return; }
+  let h = '<div class="nhead">Notable items — auto-detected magnitude &middot; '+
+          '<span style="color:#b07d18;">&#9432; verified notes</span></div>';
+  items.forEach(it=>{ h += '<div class="nitem">'+it.text+'</div>'; });
+  curated.forEach(k=>{
+    const p = k.split('|'), c = DATA.curated[k];
+    h += '<div class="nitem curated"><b>'+p[1]+' · '+p[2]+':</b> '+c.explanation +
+         (c.source_url ? ' <a class="src" href="'+c.source_url+'" target="_blank" rel="noopener">source &#8599;</a>' : '') +
+         '</div>';
+  });
+  box.innerHTML = h;
+}
+
+/* ------------------------ single-period bridges ------------------------ */
+function drawIncomeBridge(d){
+  const x = ['Revenue','Cost of Revenue','Gross Profit','Operating Exp.','Operating Income','Taxes & Other','Net Income'];
+  const measure = ['absolute','relative','total','relative','total','relative','total'];
+  const y = [d.rev, -d.cogs, d.gp, -d.opex, d.oi, d.ni - d.oi, d.ni].map(bil);
+  plot('c-income-waterfall', [{
+    type:'waterfall', x, measure, y, text:y.map(moneyB), textposition:'outside',
+    increasing:{marker:{color:COL.accent}}, decreasing:{marker:{color:COL.neg}},
+    totals:{marker:{color:COL.navy}}, connector:{line:{color:COL.muted, width:1}},
+    hovertemplate:'%{x}: %{text}<extra></extra>'
+  }], layout({yaxis:{ticksuffix:'B', tickprefix:'$'}, margin:{l:55,r:12,t:12,b:48}}));
+}
+function drawCashBridge(d){
+  const x = ['Beginning','Operating','Investing','Financing','Ending'];
+  const measure = ['absolute','relative','relative','relative','total'];
+  const y = [d.beg, d.cfo, d.cfi, d.cff, d.end].map(bil);
+  plot('c-cash-waterfall', [{
+    type:'waterfall', x, measure, y, text:y.map(moneyB), textposition:'outside',
+    increasing:{marker:{color:COL.accent}}, decreasing:{marker:{color:COL.neg}},
+    totals:{marker:{color:COL.navy}}, connector:{line:{color:COL.muted, width:1}},
+    hovertemplate:'%{x}: %{text}<extra></extra>'
+  }], layout({yaxis:{ticksuffix:'B', tickprefix:'$'}, margin:{l:55,r:12,t:12,b:40}}));
+}
+const BRIDGE = { income:{key:'income', title:'Income bridge — Revenue to Net Income', draw:drawIncomeBridge},
+                 cashflow:{key:'cash', title:'Cash bridge — Beginning to Ending cash', draw:drawCashBridge} };
+function populateBridgeSel(tab){
+  const cfg = BRIDGE[tab], freq = FREQ[tab];
+  const avail = DATA.bridges[cfg.key][freq==='annual'?'annual':'quarterly'];
+  const periods = visiblePeriods(tab).filter(p=>avail[p.key] != null);
+  const sel = document.getElementById(tab+'-bridge-sel');
+  sel.innerHTML = '';
+  periods.forEach(p=> sel.add(new Option(p.label, p.key)));
+  if(periods.length) sel.value = periods[periods.length-1].key;   // latest available
+  sel.onchange = ()=> drawBridge(tab);
+}
+function drawBridge(tab){
+  const cfg = BRIDGE[tab], freq = FREQ[tab];
+  const sel = document.getElementById(tab+'-bridge-sel');
+  const avail = DATA.bridges[cfg.key][freq==='annual'?'annual':'quarterly'];
+  const key = sel.value;
+  const period = key ? blockOf(tab).periods.find(p=>p.key===key) : null;
+  const d = period ? avail[key] : null;
+  const deriv = isDerived(tab, period)
+    ? '<span class="derivtag" title="'+escAttr(DERIV_TIP)+'">derived from YTD</span>' : '';
+  document.getElementById(tab+'-bridge-title').innerHTML =
+    cfg.title + (period ? ' ('+period.label+')' : '') + deriv;
+  if(d) cfg.draw(d);
+}
+
+function renderSheet(tab){
+  const blk = blockOf(tab), view = VIEW[tab];
+  const periods = visiblePeriods(tab), baseS = blk.base_series;
+  const valmap = {}; blk.rows.forEach(r=>{ valmap[r.line] = r.values; });
+  if(SEL[tab] == null && blk.rows.length) SEL[tab] = blk.rows[0].line;
+
+  let h = '<table class="sheet"><thead><tr><th>'+STMT_TITLE[tab]+'</th>';
+  periods.forEach(p=>{
+    const d = isDerived(tab, p) ? '<span class="cellderiv" title="'+escAttr(DERIV_TIP)+'">d</span>' : '';
+    h += '<th>'+p.label+d+'</th>';
+  });
+  h += '</tr></thead><tbody>';
+  blk.rows.forEach((r, i)=>{
+    const selCls = (r.line===SEL[tab]) ? ' sel' : '';
+    h += '<tr class="clickable'+selCls+'" data-idx="'+i+'"><td>'+r.line+'</td>';
+    periods.forEach(p=>{ h += '<td>'+cellByView(tab, r.line, valmap, p, view, baseS)+'</td>'; });
+    h += '</tr>';
+  });
+  h += '</tbody></table>';
+  document.getElementById('t-'+tab+'-sheet').innerHTML = h;
+
+  // wire row clicks -> trend
+  document.querySelectorAll('#t-'+tab+'-sheet tr.clickable').forEach(tr=>{
+    tr.onclick = ()=>{
+      SEL[tab] = blk.rows[+tr.dataset.idx].line;
+      document.querySelectorAll('#t-'+tab+'-sheet tr').forEach(x=>x.classList.remove('sel'));
+      tr.classList.add('sel');
+      drawRowTrend(tab);
+    };
+  });
+
+  // quarterly coverage note
+  const qn = document.getElementById('qnote-'+tab);
+  if(FREQ[tab]==='quarterly'){
+    let msg = '<b>Quarterly note:</b> Apple files figures year-to-date and no standalone '+
+      'fiscal Q4. Columns marked <span class="cellderiv">d</span> are standalone quarters '+
+      'derived by differencing YTD filings (income Q4; cash-flow Q2&ndash;Q4) and reconcile '+
+      'exactly to the reported annual. Balance-sheet items are quarter-end snapshots (not derived).';
+    if(PARTIAL.has(QYEAR[tab])){
+      msg += ' <b style="color:#b07d18;">FY'+QYEAR[tab]+' is in progress</b> — only the filed '+
+        'quarters are shown (year-to-date); it is not a complete fiscal year and is never '+
+        'used as a full-year comparison base.';
+    }
+    qn.innerHTML = msg;
+  } else { qn.textContent = ''; }
+
+  // view subtitle (what the current view compares against)
+  const base = tab==='balance' ? 'total assets' : 'revenue';
+  const SUB = {
+    values: 'Values in USD billions.',
+    growth: 'YoY — vs the same period last year (Annual: prior fiscal year; Quarterly: same quarter last year).',
+    growthq:'QoQ — vs the immediately prior period (Quarterly: prior quarter; Annual: same as YoY).',
+    pct: 'Each line as % of ' + base + ' for its period.'
+  };
+  document.getElementById('viewsub-'+tab).textContent = SUB[view];
+
+  renderNotable(tab);   // notes follow the visible periods + mode
+}
+
+function drawRowTrend(tab){
+  const blk = blockOf(tab), line = SEL[tab];
+  const row = blk.rows.find(r=>r.line===line);
+  const periods = visiblePeriods(tab);
+  const xs = periods.map(p=>p.label);
+  const ys = periods.map(p=>{ const v=row.values[p.key]; return v==null?null:bil(v); });
+  document.getElementById('rowtitle-'+tab).textContent =
+    line + ' — ' + (FREQ[tab]==='annual'?'annual':'quarterly') + ' trend';
+  plot('c-'+tab+'-rowtrend', [{
+    type:'scatter', mode:'lines+markers', x:xs, y:ys, connectgaps:false,
+    line:{color:COL.accent, width:2.5}, marker:{size:7},
+    hovertemplate:'%{x}: $%{y:.1f}B<extra></extra>'
+  }], layout({yaxis:{ticksuffix:'B', tickprefix:'$'}, showlegend:false}));
+}
+
+/* toggle handling (event-delegated in init) */
+function setToggle(tab, group, value){
+  if(group==='view') VIEW[tab] = value; else FREQ[tab] = value;
+  if(group==='freq'){ SEL[tab] = null; toggleYearSel(tab); }   // periods changed -> reset
+  renderSheet(tab);
+  if(group==='freq'){
+    drawRowTrend(tab);
+    if(BRIDGE[tab]){ populateBridgeSel(tab); drawBridge(tab); }   // bridge follows period mode
+  }
+}
+function toggleYearSel(tab){
+  const show = FREQ[tab] === 'quarterly';
+  document.querySelectorAll('[data-yeartab="'+tab+'"]').forEach(e=>{ e.style.display = show ? '' : 'none'; });
+}
+function onYearChange(tab, value){
+  QYEAR[tab] = value;
+  SEL[tab] = null;
+  renderSheet(tab); drawRowTrend(tab);
+  if(BRIDGE[tab]){ populateBridgeSel(tab); drawBridge(tab); }
+}
+const PARTIAL = new Set((DATA.quarter_partial||[]).map(String));
+function populateYearSel(tab){
+  const sel = document.getElementById(tab+'-year-sel');
+  sel.innerHTML = '';
+  sel.add(new Option('Last 12 quarters', 'last12'));
+  (DATA.quarter_years||[]).forEach(y=>{
+    const lbl = 'FY'+y + (PARTIAL.has(String(y)) ? ' (partial · YTD)' : '');
+    sel.add(new Option(lbl, String(y)));
+  });
+  sel.value = QYEAR[tab];
+  sel.onchange = ()=> onYearChange(tab, sel.value);
+}
+
+/* =============================== INCOME ================================= */
+function drawIncome(){
+  renderSheet('income'); drawRowTrend('income');
+  populateBridgeSel('income'); drawBridge('income');
+
+  plot('c-income-trend', [
+    {type:'bar', name:'Revenue', x:YL, y:YEARS.map(y=>bil(M(y).revenue)), marker:{color:COL.accent}},
+    {type:'bar', name:'Net Income', x:YL, y:YEARS.map(y=>bil(M(y).net_income)), marker:{color:COL.navy}},
+    {type:'scatter', name:'Net margin', mode:'lines+markers', x:YL,
+     y:YEARS.map(y=>DATA.ratios[y].net_margin*100), yaxis:'y2', line:{color:COL.accent2, width:2.5}}
+  ], layout({barmode:'group', margin:{l:58, r:52, t:30, b:40},
+     yaxis:{ticksuffix:'B', tickprefix:'$'},
+     yaxis2:{overlaying:'y', side:'right', ticksuffix:'%', showgrid:false, rangemode:'tozero'}}));
+}
+
+/* =============================== BALANCE ================================ */
+function drawBalance(){
+  renderSheet('balance'); drawRowTrend('balance');
+  const assets = YEARS.map(y=>bil(M(y).total_assets));
+  const liab   = YEARS.map(y=>bil(M(y).total_liabilities));
+  const eq     = YEARS.map(y=>bil(M(y).total_equity));
+  plot('c-balance-identity', [
+    {type:'bar', name:'Total Assets', x:YL, y:assets, offsetgroup:'a', marker:{color:COL.navy}},
+    {type:'bar', name:'Total Liabilities', x:YL, y:liab, offsetgroup:'b', marker:{color:COL.accent}},
+    {type:'bar', name:'Total Equity', x:YL, y:eq, offsetgroup:'b', base:liab, marker:{color:COL.accent2}}
+  ], layout({barmode:'group', yaxis:{ticksuffix:'B', tickprefix:'$'}}));
+
+  plot('c-balance-trend', [
+    {type:'scatter', mode:'lines+markers', name:'Total Equity', x:YL, y:eq, line:{color:COL.accent2, width:2.5}},
+    {type:'scatter', mode:'lines+markers', name:'Cash & Equiv.', x:YL,
+     y:YEARS.map(y=>bil(M(y).cash)), line:{color:COL.accent, width:2.5}}
+  ], layout({yaxis:{ticksuffix:'B', tickprefix:'$'}}));
+}
+
+/* ============================== CASH FLOW ============================== */
+function drawCashflow(){
+  renderSheet('cashflow'); drawRowTrend('cashflow');
+  populateBridgeSel('cashflow'); drawBridge('cashflow');
+
+  plot('c-cash-fcf', [
+    {type:'bar', name:'Operating CF', x:YL, y:YEARS.map(y=>bil(M(y).operating_cf)), marker:{color:COL.accent}},
+    {type:'bar', name:'CapEx', x:YL, y:YEARS.map(y=>bil(M(y).capex)), marker:{color:COL.muted}},
+    {type:'scatter', name:'Free Cash Flow', mode:'lines+markers', x:YL,
+     y:YEARS.map(y=>bil(M(y).operating_cf - M(y).capex)), line:{color:COL.navy, width:2.5}}
+  ], layout({barmode:'group', yaxis:{ticksuffix:'B', tickprefix:'$'}}));
+
+  plot('c-cash-activities', [
+    {type:'bar', name:'Operating', x:YL, y:YEARS.map(y=>bil(M(y).operating_cf)), marker:{color:COL.accent}},
+    {type:'bar', name:'Investing', x:YL, y:YEARS.map(y=>bil(M(y).investing_cf)), marker:{color:COL.accent2}},
+    {type:'bar', name:'Financing', x:YL, y:YEARS.map(y=>bil(M(y).financing_cf)), marker:{color:COL.navy}}
+  ], layout({barmode:'group', yaxis:{ticksuffix:'B', tickprefix:'$'}}));
+}
+
+/* =============================== RATIOS ================================ */
+function fmtRatio(v, fmt){
+  if(v==null) return '<span class="naq">–</span>';
+  if(fmt==='pct') return pct1(v);
+  if(fmt==='x')   return ratio2(v);
+  return moneyB(bil(v));            // money
+}
+function drawRatios(){
+  const r = DATA.ratios[LAST], prevY = YEARS[YEARS.length-2], rc = DATA.ratios[prevY];
+  const fcf = M(LAST).operating_cf - M(LAST).capex, fcfC = M(prevY).operating_cf - M(prevY).capex;
+  const ppRoe=(r.roe-rc.roe)*100, ppNm=(r.net_margin-rc.net_margin)*100;
+  const dCr=r.current_ratio-rc.current_ratio, pFcf=fcfC?(fcf-fcfC)/Math.abs(fcfC):null;
+  document.getElementById('kpi-ratios').innerHTML =
+    kpi('Return on Equity', pct0(r.roe), chgPP(ppRoe,0,prevY)) +
+    kpi('Net Margin', pct1(r.net_margin), chgPP(ppNm,1,prevY)) +
+    kpi('Current Ratio', ratio2(r.current_ratio), chgAbs(dCr,prevY)) +
+    kpi('Free Cash Flow', moneyB(bil(fcf)), chgPct(pFcf,prevY));
+
+  // ratios table (all years)
+  const rt = DATA.ratios_table;
+  let h = '<table class="sheet"><thead><tr><th>Ratio</th>';
+  rt.periods.forEach(p=>{ h += '<th>'+p.label+'</th>'; });
+  h += '</tr></thead><tbody>';
+  rt.rows.forEach(row=>{
+    h += '<tr><td>'+row.label+'</td>';
+    rt.periods.forEach(p=>{
+      h += '<td>'+fmtRatio(row.values[p.key], row.fmt)+cellMarkers('ratios', row.label, p)+'</td>';
+    });
+    h += '</tr>';
+  });
+  document.getElementById('t-ratios-sheet').innerHTML = h + '</tbody></table>';
+
+  plot('c-ratios-margins', [
+    {type:'scatter', mode:'lines+markers', name:'Gross margin', x:YL, y:YEARS.map(y=>DATA.ratios[y].gross_margin*100), line:{color:COL.accent, width:2.5}},
+    {type:'scatter', mode:'lines+markers', name:'Operating margin', x:YL, y:YEARS.map(y=>DATA.ratios[y].operating_margin*100), line:{color:COL.accent2, width:2.5}},
+    {type:'scatter', mode:'lines+markers', name:'Net margin', x:YL, y:YEARS.map(y=>DATA.ratios[y].net_margin*100), line:{color:COL.navy, width:2.5}}
+  ], layout({yaxis:{ticksuffix:'%'}}));
+
+  plot('c-ratios-roe', [{
+    type:'scatter', mode:'lines+markers', name:'ROE', x:YL,
+    y:YEARS.map(y=>DATA.ratios[y].roe*100), line:{color:COL.navy, width:2.5},
+    fill:'tozeroy', fillcolor:'rgba(43,108,176,0.08)'
+  }], layout({yaxis:{ticksuffix:'%'}, showlegend:false}));
+
+  plot('c-ratios-liquidity', [
+    {type:'bar', name:'Free Cash Flow', x:YL, y:YEARS.map(y=>bil(M(y).operating_cf - M(y).capex)), marker:{color:COL.accent}},
+    {type:'scatter', name:'Current ratio', mode:'lines+markers', x:YL, y:YEARS.map(y=>DATA.ratios[y].current_ratio), yaxis:'y2', line:{color:COL.navy, width:2.5}}
+  ], layout({yaxis:{ticksuffix:'B', tickprefix:'$'}, yaxis2:{overlaying:'y', side:'right', showgrid:false, rangemode:'tozero'}}));
+}
+function kpi(label, val, chg){
+  return '<div class="kpi"><div class="k-label">'+label+'</div>' +
+         '<div class="k-val">'+val+'</div>' +
+         '<div class="k-chg '+chg.cls+'">'+chg.text+'</div></div>';
+}
+function chgSign(x){ return x>=0 ? 'pos' : 'neg'; }
+function chgPP(pp, dec, comp){ return {text:(pp>=0?'+':'')+pp.toFixed(dec)+' pp vs FY'+comp, cls:chgSign(pp)}; }
+function chgAbs(d, comp){ return {text:(d>=0?'+':'')+d.toFixed(2)+' vs FY'+comp, cls:chgSign(d)}; }
+function chgPct(p, comp){ return p==null ? {text:'vs FY'+comp, cls:''}
+                          : {text:(p>=0?'+':'')+pct1(p)+' vs FY'+comp, cls:chgSign(p)}; }
+
+/* ============================== VARIANCE =============================== */
+const getBase    = () => +document.getElementById('sel-base').value;
+const getCompare = () => +document.getElementById('sel-compare').value;
+const mval = (y, key) => key === 'fcf' ? (M(y).operating_cf - M(y).capex) : M(y)[key];
+const VAR_METRICS = [
+  ['Revenue','revenue'], ['Gross Profit','gross_profit'], ['Operating Income','operating_income'],
+  ['Net Income','net_income'], ['Total Assets','total_assets'], ['Total Equity','total_equity'],
+  ['Operating Cash Flow','operating_cf'], ['Free Cash Flow','fcf']
+];
+function drawVariance(){
+  const base = getBase(), comp = getCompare();
+  const rows = VAR_METRICS.map(([label,key])=>{
+    const b=mval(base,key), c=mval(comp,key), d=b-c, p=c!==0?d/Math.abs(c):null;
+    return {label,b,c,d,p};
+  });
+  let h = '<table class="fin"><thead><tr><th>Metric</th><th>FY'+base+'</th><th>FY'+comp+
+          '</th><th>&Delta;</th><th>&Delta; %</th></tr></thead><tbody>';
+  rows.forEach(r=>{
+    const cls=r.d>=0?'pos':'neg', pstr=r.p==null?'–':((r.p>=0?'+':'')+pct1(r.p));
+    h += '<tr><td>'+r.label+'</td><td>'+moneyB(bil(r.b))+'</td><td>'+moneyB(bil(r.c))+'</td>'+
+         '<td class="'+cls+'">'+(r.d>=0?'+':'')+moneyB(bil(r.d))+'</td>'+
+         '<td><span class="chip '+cls+'">'+pstr+'</span></td></tr>';
+  });
+  document.getElementById('t-variance').innerHTML = h + '</tbody></table>';
+
+  const t = rows.filter(r=>r.p!=null).slice().sort((a,b)=>a.p-b.p);
+  const tmax = Math.max(...t.map(r=>Math.abs(r.p*100)));
+  plot('c-variance-tornado', [{
+    type:'bar', orientation:'h', x:t.map(r=>r.p*100), y:t.map(r=>r.label),
+    marker:{color:t.map(r=>r.p>=0?COL.pos:COL.neg)},
+    text:t.map(r=>(r.p>=0?'+':'')+pct1(r.p)),
+    textposition:t.map(r=>r.p>=0?'outside':'inside'), insidetextanchor:'end',
+    textfont:{size:11}, cliponaxis:false,
+    hovertemplate:'%{y}: %{text}<extra></extra>'
+  }], layout({xaxis:{ticksuffix:'%', zeroline:true, zerolinecolor:COL.muted,
+       gridcolor:COL.grid, range:[-tmax*1.25, tmax*1.3]},
+       margin:{l:170, r:48, t:10, b:30}, showlegend:false}));
+
+  const sorted = rows.filter(r=>r.p!=null).slice().sort((a,b)=>Math.abs(b.p)-Math.abs(a.p));
+  const top = sorted[0];
+  const bps = Math.round((DATA.ratios[base].net_margin - DATA.ratios[comp].net_margin)*10000);
+  document.getElementById('ins-variance').innerHTML =
+    'Largest move <b>FY'+base+'</b> vs <b>FY'+comp+'</b>: <b>'+top.label+'</b> '+
+    (top.p>=0?'+':'')+pct1(top.p)+'. Net margin '+(bps>=0?'expanded':'compressed')+' '+
+    Math.abs(bps)+' bps to '+pct1(DATA.ratios[base].net_margin)+'.';
+}
+
+/* ----------------------------- navigation ------------------------------ */
+const DRAWERS = { income:drawIncome, balance:drawBalance, cashflow:drawCashflow, ratios:drawRatios, variance:drawVariance };
+const drawn = {};
+
+function showTab(name){
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.toggle('active', b.dataset.tab===name));
+  document.querySelectorAll('.panel').forEach(p=>p.classList.toggle('active', p.id==='tab-'+name));
+  if(!drawn[name]){ DRAWERS[name](); drawn[name] = true; }
+  resizePanel(name);
+}
+function resizePanel(name){
+  document.querySelectorAll('#tab-'+name+' .chart').forEach(d=>{ if(d.dataset.drawn) Plotly.Plots.resize(d); });
+}
+function updateYearLabels(){
+  document.querySelectorAll('.yr-base').forEach(e=>e.textContent='FY'+getBase());
+  document.querySelectorAll('.yr-comp').forEach(e=>e.textContent='FY'+getCompare());
+}
+function onPeriodChange(){ updateYearLabels(); drawVariance(); }
+
+/* -------------------------------- init --------------------------------- */
+function init(){
+  buildNotable();
+  const desc = YEARS.slice().sort((a,b)=>b-a);
+  const baseSel = document.getElementById('sel-base');
+  const compSel = document.getElementById('sel-compare');
+  desc.forEach(y=>{ baseSel.add(new Option('FY'+y, y)); compSel.add(new Option('FY'+y, y)); });
+  baseSel.value = desc[0]; compSel.value = desc[1];
+  baseSel.onchange = onPeriodChange; compSel.onchange = onPeriodChange;
+
+  document.querySelectorAll('.tab-btn').forEach(b=>b.onclick=()=>showTab(b.dataset.tab));
+
+  ['income','balance','cashflow'].forEach(populateYearSel);   // quarterly year filters
+
+  // toggle buttons (view / frequency)
+  document.querySelectorAll('.toggle').forEach(grp=>{
+    const tab = grp.dataset.tab, group = grp.dataset.group;
+    grp.querySelectorAll('button').forEach(btn=>{
+      btn.onclick = ()=>{
+        grp.querySelectorAll('button').forEach(b=>b.classList.remove('active'));
+        btn.classList.add('active');
+        setToggle(tab, group, group==='view' ? btn.dataset.v : btn.dataset.f);
+      };
+    });
+  });
+
+  // blue insights (latest fiscal year) + analyst notes
+  document.getElementById('ins-income').innerHTML   = INSIGHTS.income;
+  document.getElementById('ins-balance').innerHTML  = INSIGHTS.balance;
+  document.getElementById('ins-cashflow').innerHTML = INSIGHTS.cashflow;
+  document.getElementById('ins-ratios').innerHTML   = INSIGHTS.ratios;
+  [['note-income','income_note'], ['note-ratios','ratios_note'], ['note-cashflow','cashflow_note']]
+    .forEach(function(pair){
+      const el = document.getElementById(pair[0]), txt = INSIGHTS[pair[1]];
+      if(el){ if(txt){ el.innerHTML = txt; } else { el.style.display='none'; } }
+    });
+
+  updateYearLabels();
+  showTab('income');
+
+  window.addEventListener('resize', ()=>{
+    document.querySelectorAll('.chart').forEach(d=>{ if(d.dataset.drawn) Plotly.Plots.resize(d); });
+  });
+}
+init();
+
+</script>
+</body>
+</html>

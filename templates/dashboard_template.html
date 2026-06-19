@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>__TITLE__</title>
+<script src="https://cdn.plot.ly/plotly-2.35.2.min.js" charset="utf-8"></script>
+<style>
+  :root {
+    --navy:#1b2a4a; --slate:#334155; --muted:#64748b; --line:#e2e8f0;
+    --bg:#f1f5f9; --card:#ffffff; --accent:#2b6cb0; --accent2:#0e7490;
+    --pos:#15803d; --neg:#b91c1c; --pos-bg:#e7f4ec; --neg-bg:#fbeaea;
+  }
+  * { box-sizing:border-box; }
+  body {
+    margin:0; background:var(--bg); color:var(--slate);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    font-size:15px; line-height:1.45;
+  }
+  .wrap { max-width:1180px; margin:0 auto; padding:0 18px 48px; }
+
+  /* Header */
+  header { background:var(--navy); color:#fff; padding:22px 0 18px; }
+  .header-inner { max-width:1180px; margin:0 auto; padding:0 18px;
+    display:flex; justify-content:space-between; align-items:flex-start; gap:16px; flex-wrap:wrap; }
+  header h1 { margin:0; font-size:22px; font-weight:650; letter-spacing:.2px; }
+  header .sub { margin-top:4px; font-size:13px; color:#aebfd6; }
+  .badge { background:#fff; color:var(--navy); font-weight:700; font-size:13px;
+    padding:6px 12px; border-radius:6px; letter-spacing:.5px; white-space:nowrap; }
+
+  /* Control bar */
+  .controls { background:#fff; border-bottom:1px solid var(--line);
+    position:sticky; top:0; z-index:20; box-shadow:0 1px 2px rgba(0,0,0,.04); }
+  .controls-inner { max-width:1180px; margin:0 auto; padding:10px 18px;
+    display:flex; align-items:center; gap:18px; flex-wrap:wrap; }
+  .ctl { display:flex; align-items:center; gap:7px; font-size:13px; color:var(--muted); }
+  .ctl label { font-weight:600; }
+  select { font:inherit; font-size:13px; padding:5px 8px; border:1px solid var(--line);
+    border-radius:6px; background:#fff; color:var(--slate); cursor:pointer; }
+  select:disabled { color:var(--muted); background:#f8fafc; cursor:not-allowed; }
+
+  /* Tabs */
+  .tabs { display:flex; gap:4px; border-bottom:1px solid var(--line);
+    margin:18px 0 0; flex-wrap:wrap; }
+  .tab-btn { border:none; background:none; padding:11px 16px; font:inherit; font-size:14px;
+    font-weight:600; color:var(--muted); cursor:pointer; border-bottom:2.5px solid transparent; }
+  .tab-btn:hover { color:var(--slate); }
+  .tab-btn.active { color:var(--navy); border-bottom-color:var(--accent); }
+  .panel { display:none; padding-top:18px; }
+  .panel.active { display:block; }
+
+  /* Insight banner */
+  .insight { background:#eef2f8; border-left:3px solid var(--accent);
+    padding:11px 15px; border-radius:0 6px 6px 0; font-size:14px; color:var(--slate);
+    margin-bottom:18px; }
+  .insight b { color:var(--navy); }
+
+  /* Analyst note — secondary, contextual; amber accent to distinguish from insight */
+  .note { background:#fbf8f1; border-left:3px solid #c79a3a; color:#5b6675;
+    padding:9px 13px; border-radius:0 6px 6px 0; font-size:13px; margin:-8px 0 18px; }
+  .note b { color:var(--slate); }
+  .note .tag { font-weight:700; color:#b07d18; text-transform:uppercase;
+    font-size:11px; letter-spacing:.5px; margin-right:6px; }
+  .card .note { margin:10px 0 4px; }
+
+  /* Cards / grid */
+  .grid { display:grid; grid-template-columns:1fr 1fr; gap:18px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:10px;
+    padding:16px 16px 6px; box-shadow:0 1px 2px rgba(0,0,0,.03); }
+  .card.full { grid-column:1 / -1; }
+  .card h3 { margin:0 0 6px; font-size:14px; font-weight:650; color:var(--navy); }
+  .chart { width:100%; height:340px; }
+  .chart.tall { height:380px; }
+
+  /* KPI cards */
+  .kpis { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:18px; }
+  .kpi { background:#fff; border:1px solid var(--line); border-radius:10px; padding:14px 16px; }
+  .kpi .k-label { font-size:12px; color:var(--muted); font-weight:600; text-transform:uppercase; letter-spacing:.4px; }
+  .kpi .k-val { font-size:26px; font-weight:700; color:var(--navy); margin-top:4px; }
+  .kpi .k-sub { font-size:12px; color:var(--muted); margin-top:2px; }
+  .kpi .k-chg { font-size:12px; font-weight:600; margin-top:3px; }
+  .kpi .k-chg.pos { color:var(--pos); } .kpi .k-chg.neg { color:var(--neg); }
+
+  /* Tables */
+  table.fin { width:100%; border-collapse:collapse; font-size:13px; }
+  table.fin th, table.fin td { padding:7px 9px; text-align:right; border-bottom:1px solid var(--line); }
+  table.fin th:first-child, table.fin td:first-child { text-align:left; }
+  table.fin thead th { color:var(--muted); font-weight:600; font-size:12px;
+    text-transform:uppercase; letter-spacing:.3px; }
+  table.fin tbody tr:hover { background:#f8fafc; }
+  .pos { color:var(--pos); } .neg { color:var(--neg); }
+  .chip { padding:2px 7px; border-radius:5px; font-weight:600; font-size:12px; }
+  .chip.pos { background:var(--pos-bg); } .chip.neg { background:var(--neg-bg); }
+
+  /* Toolbar with view / frequency toggles */
+  .toolbar { display:flex; gap:16px; align-items:center; flex-wrap:wrap; margin-bottom:14px; }
+  .toolbar .tlabel { font-size:12px; color:var(--muted); font-weight:600;
+    text-transform:uppercase; letter-spacing:.4px; }
+  .toggle { display:inline-flex; border:1px solid var(--line); border-radius:7px; overflow:hidden; }
+  .toggle button { border:none; background:#fff; padding:7px 13px; font:inherit; font-size:13px;
+    font-weight:600; color:var(--muted); cursor:pointer; }
+  .toggle button + button { border-left:1px solid var(--line); }
+  .toggle button.active { background:var(--navy); color:#fff; }
+
+  /* Spreadsheet-style statement table with a sticky first column */
+  .sheet-wrap { overflow-x:auto; border:1px solid var(--line); border-radius:10px; background:#fff; }
+  table.sheet { width:100%; border-collapse:collapse; font-size:13px; min-width:600px; }
+  table.sheet th, table.sheet td { padding:8px 13px; text-align:right; white-space:nowrap;
+    border-bottom:1px solid var(--line); }
+  table.sheet thead th { background:#f1f5f9; color:var(--muted); font-weight:600; font-size:12px; }
+  table.sheet th:first-child, table.sheet td:first-child { text-align:left; position:sticky; left:0;
+    background:#fff; z-index:2; font-weight:500; box-shadow:1px 0 0 var(--line); }
+  table.sheet thead th:first-child { background:#f1f5f9; z-index:3; }
+  table.sheet tbody tr.clickable { cursor:pointer; }
+  table.sheet tbody tr.clickable:hover td, table.sheet tbody tr.clickable:hover td:first-child { background:#eef4fb; }
+  table.sheet tbody tr.sel td, table.sheet tbody tr.sel td:first-child { background:#e3edf9; }
+  table.sheet .naq { color:#b0b7c3; }
+  .qnote { font-size:12px; color:var(--muted); margin:10px 2px 0; }
+  .qnote b { color:#b07d18; }
+  .viewsub { font-size:12px; color:var(--muted); margin:0 2px 10px; font-style:italic; }
+
+  /* Per-chart period selector */
+  .chart-head { display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:6px; }
+  .chart-head h3 { margin:0; }
+  .mini-sel { font:inherit; font-size:12px; padding:4px 9px; border:1px solid var(--line);
+    border-radius:6px; background:#fff; color:var(--slate); cursor:pointer; }
+
+  /* Notable items strip + curated notes */
+  .notable { margin:16px 0 4px; }
+  .notable .nhead { font-size:12px; font-weight:700; color:var(--muted);
+    text-transform:uppercase; letter-spacing:.4px; margin-bottom:8px; }
+  .notable .nitem { font-size:13px; color:var(--slate); padding:7px 11px; border-left:3px solid var(--accent2);
+    background:#f3f8fa; border-radius:0 6px 6px 0; margin-bottom:7px; }
+  .notable .nitem.curated { border-left-color:#c79a3a; background:#fbf8f1; }
+  .notable .nitem .src { color:var(--accent); text-decoration:none; font-size:12px; margin-left:6px; }
+  /* in-cell markers */
+  .cellflag { display:inline-block; width:6px; height:6px; border-radius:50%;
+    background:var(--accent2); margin-left:6px; vertical-align:middle; cursor:help; }
+  .cellnote { color:#b07d18; font-weight:700; cursor:help; margin-left:4px; font-size:11px; }
+  .cellrev { color:#2563eb; cursor:help; margin-left:4px; font-size:12px; }
+  .cellderiv { color:#7c8aa0; cursor:help; margin-left:4px; font-size:10px; vertical-align:super; }
+  .derivtag { font-size:11px; font-weight:600; color:#7c8aa0; background:#eef1f5;
+    padding:2px 7px; border-radius:5px; margin-left:8px; }
+
+  footer { margin-top:30px; padding-top:16px; border-top:1px solid var(--line);
+    font-size:12px; color:var(--muted); }
+  footer a { color:var(--accent); text-decoration:none; }
+
+  @media (max-width:768px) {
+    .grid { grid-template-columns:1fr; }
+    .kpis { grid-template-columns:1fr 1fr; }
+    header h1 { font-size:18px; }
+    .chart { height:300px; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="header-inner">
+    <div>
+      <h1>__TITLE__</h1>
+      <div class="sub">__SUBTITLE__</div>
+    </div>
+    <div class="badge">__TICKER__</div>
+  </div>
+</header>
+
+<div class="controls">
+  <div class="controls-inner">
+    <div class="ctl"><label>Ticker</label>
+      <select id="sel-ticker" disabled><option>__TICKER__</option></select>
+    </div>
+    <div class="ctl" style="color:var(--muted);font-size:12px;">
+      Each statement has its own <b style="color:var(--slate)">View</b> &amp;
+      <b style="color:var(--slate)">Period</b> toggles · click any row for its trend.
+    </div>
+  </div>
+</div>
+
+<div class="wrap">
+  <div class="tabs" id="tabs">
+    <button class="tab-btn active" data-tab="income">Income</button>
+    <button class="tab-btn" data-tab="balance">Balance Sheet</button>
+    <button class="tab-btn" data-tab="cashflow">Cash Flow</button>
+    <button class="tab-btn" data-tab="ratios">Ratios</button>
+    <button class="tab-btn" data-tab="variance">Variance</button>
+  </div>
+
+  <!-- INCOME -->
+  <section class="panel active" id="tab-income">
+    <div class="insight" id="ins-income"></div>
+    <div class="note" id="note-income"></div>
+    <div class="toolbar">
+      <span class="tlabel">View</span>
+      <div class="toggle" data-group="view" data-tab="income">
+        <button data-v="values" class="active">Values $</button>
+        <button data-v="growth" title="YoY — vs the same period last year">Growth (YoY %)</button>
+        <button data-v="growthq" title="QoQ — vs the immediately prior period">Growth (QoQ %)</button>
+        <button data-v="pct">% of Revenue</button>
+      </div>
+      <span class="tlabel">Period</span>
+      <div class="toggle" data-group="freq" data-tab="income">
+        <button data-f="annual" class="active">Annual</button>
+        <button data-f="quarterly">Quarterly</button>
+      </div>
+      <span class="tlabel qonly" data-yeartab="income" style="display:none;">Year</span>
+      <select class="mini-sel qonly" id="income-year-sel" data-yeartab="income" style="display:none;"></select>
+    </div>
+    <div class="viewsub" id="viewsub-income"></div>
+    <div class="sheet-wrap"><div id="t-income-sheet"></div></div>
+    <div class="qnote" id="qnote-income"></div>
+    <div class="notable" id="notable-income"></div>
+    <div class="grid" style="margin-top:18px;">
+      <div class="card full"><h3 id="rowtitle-income">Click a row above to chart its trend</h3>
+        <div class="chart" id="c-income-rowtrend"></div></div>
+      <div class="card full">
+        <div class="chart-head"><h3 id="income-bridge-title">Income bridge</h3>
+          <select id="income-bridge-sel" class="mini-sel"></select></div>
+        <div class="chart tall" id="c-income-waterfall"></div></div>
+      <div class="card full"><h3>Revenue &amp; Net Income (5-year)</h3>
+        <div class="chart" id="c-income-trend"></div></div>
+    </div>
+  </section>
+
+  <!-- BALANCE -->
+  <section class="panel" id="tab-balance">
+    <div class="insight" id="ins-balance"></div>
+    <div class="toolbar">
+      <span class="tlabel">View</span>
+      <div class="toggle" data-group="view" data-tab="balance">
+        <button data-v="values" class="active">Values $</button>
+        <button data-v="growth" title="YoY — vs the same period last year">Growth (YoY %)</button>
+        <button data-v="growthq" title="QoQ — vs the immediately prior period">Growth (QoQ %)</button>
+        <button data-v="pct">% of Assets</button>
+      </div>
+      <span class="tlabel">Period</span>
+      <div class="toggle" data-group="freq" data-tab="balance">
+        <button data-f="annual" class="active">Annual</button>
+        <button data-f="quarterly">Quarterly</button>
+      </div>
+      <span class="tlabel qonly" data-yeartab="balance" style="display:none;">Year</span>
+      <select class="mini-sel qonly" id="balance-year-sel" data-yeartab="balance" style="display:none;"></select>
+    </div>
+    <div class="viewsub" id="viewsub-balance"></div>
+    <div class="sheet-wrap"><div id="t-balance-sheet"></div></div>
+    <div class="qnote" id="qnote-balance"></div>
+    <div class="notable" id="notable-balance"></div>
+    <div class="grid" style="margin-top:18px;">
+      <div class="card full"><h3 id="rowtitle-balance">Click a row above to chart its trend</h3>
+        <div class="chart" id="c-balance-rowtrend"></div></div>
+      <div class="card full"><h3>Total Assets vs. Liabilities + Equity — 5-year (balances tie out)</h3>
+        <div class="chart tall" id="c-balance-identity"></div></div>
+      <div class="card full"><h3>Equity &amp; Cash (5-year)</h3>
+        <div class="chart" id="c-balance-trend"></div></div>
+    </div>
+  </section>
+
+  <!-- CASH FLOW -->
+  <section class="panel" id="tab-cashflow">
+    <div class="insight" id="ins-cashflow"></div>
+    <div class="note" id="note-cashflow"></div>
+    <div class="toolbar">
+      <span class="tlabel">View</span>
+      <div class="toggle" data-group="view" data-tab="cashflow">
+        <button data-v="values" class="active">Values $</button>
+        <button data-v="growth" title="YoY — vs the same period last year">Growth (YoY %)</button>
+        <button data-v="growthq" title="QoQ — vs the immediately prior period">Growth (QoQ %)</button>
+        <button data-v="pct">% of Revenue</button>
+      </div>
+      <span class="tlabel">Period</span>
+      <div class="toggle" data-group="freq" data-tab="cashflow">
+        <button data-f="annual" class="active">Annual</button>
+        <button data-f="quarterly">Quarterly</button>
+      </div>
+      <span class="tlabel qonly" data-yeartab="cashflow" style="display:none;">Year</span>
+      <select class="mini-sel qonly" id="cashflow-year-sel" data-yeartab="cashflow" style="display:none;"></select>
+    </div>
+    <div class="viewsub" id="viewsub-cashflow"></div>
+    <div class="sheet-wrap"><div id="t-cashflow-sheet"></div></div>
+    <div class="qnote" id="qnote-cashflow"></div>
+    <div class="notable" id="notable-cashflow"></div>
+    <div class="grid" style="margin-top:18px;">
+      <div class="card full"><h3 id="rowtitle-cashflow">Click a row above to chart its trend</h3>
+        <div class="chart" id="c-cashflow-rowtrend"></div></div>
+      <div class="card full">
+        <div class="chart-head"><h3 id="cashflow-bridge-title">Cash bridge</h3>
+          <select id="cashflow-bridge-sel" class="mini-sel"></select></div>
+        <div class="chart tall" id="c-cash-waterfall"></div></div>
+      <div class="card"><h3>Operating cash flow, CapEx &amp; Free Cash Flow (5-year)</h3>
+        <div class="chart" id="c-cash-fcf"></div></div>
+      <div class="card"><h3>Cash flow by activity (5-year)</h3>
+        <div class="chart" id="c-cash-activities"></div></div>
+    </div>
+  </section>
+
+  <!-- RATIOS -->
+  <section class="panel" id="tab-ratios">
+    <div class="insight" id="ins-ratios"></div>
+    <div class="kpis" id="kpi-ratios"></div>
+    <div class="sheet-wrap" style="margin-bottom:18px;"><div id="t-ratios-sheet"></div></div>
+    <div class="grid">
+      <div class="card full"><h3>Profitability margins (5-year)</h3>
+        <div class="chart" id="c-ratios-margins"></div></div>
+      <div class="card"><h3>Return on equity (5-year)</h3>
+        <div class="chart" id="c-ratios-roe"></div>
+        <div class="note" id="note-ratios"></div></div>
+      <div class="card"><h3>Current ratio &amp; Free cash flow (5-year)</h3>
+        <div class="chart" id="c-ratios-liquidity"></div></div>
+    </div>
+  </section>
+
+  <!-- VARIANCE -->
+  <section class="panel" id="tab-variance">
+    <div class="toolbar">
+      <span class="tlabel">Compare</span>
+      <div class="ctl"><label style="font-weight:600;color:var(--muted);">Period A</label>
+        <select id="sel-base"></select></div>
+      <div class="ctl"><label style="font-weight:600;color:var(--muted);">vs Period B</label>
+        <select id="sel-compare"></select></div>
+    </div>
+    <div class="insight" id="ins-variance"></div>
+    <div class="grid">
+      <div class="card"><h3>Variance table — <span class="yr-base"></span> vs <span class="yr-comp"></span></h3>
+        <div id="t-variance" style="overflow-x:auto;"></div></div>
+      <div class="card"><h3>YoY change by metric (%)</h3>
+        <div class="chart" id="c-variance-tornado"></div></div>
+    </div>
+  </section>
+
+  <footer>
+    <div>__SUBTITLE__</div>
+    <div style="margin-top:6px;">
+      Built with Python (requests · pandas · SQLite · Plotly). Figures computed from
+      auditable SQL views over SEC XBRL facts. Source code &amp; methodology on
+      <a href="__REPO_URL__">GitHub</a>.
+    </div>
+  </footer>
+</div>
+
+<script>
+const DATA = __DATA__;
+const INSIGHTS = __INSIGHTS__;
+</script>
+<script>
+__DASHBOARD_JS__
+</script>
+</body>
+</html>

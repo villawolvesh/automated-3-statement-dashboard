@@ -1,0 +1,40 @@
+{
+  "_comment": "CURATED variance notes. Hand-verified explanations of WHY a line moved. The automatic layer only describes magnitude; causes live ONLY here. To add a note: append an object with statement (income|balance|cashflow|ratios), line (exact line/ratio label as shown in its table), period (column label, e.g. 'FY2024' or 'Q1 FY24'), explanation, and source_url. Keep explanations factual and cite a public source.",
+  "notes": [
+    {
+      "statement": "income",
+      "line": "Income Tax",
+      "period": "FY2024",
+      "explanation": "As reported under GAAP. A one-time, non-recurring ~$10.2B income-tax charge from the EU State Aid (Ireland) ruling, recorded in fiscal Q4 2024, raised the effective tax rate and cut net income despite higher revenue. This is a discrete tax item, not an operational decline; no adjusted/normalized figures are implied.",
+      "source_url": "https://www.apple.com/newsroom/2024/10/apple-reports-fourth-quarter-results/"
+    },
+    {
+      "statement": "income",
+      "line": "Net Income",
+      "period": "FY2024",
+      "explanation": "As reported under GAAP. Net income fell despite higher revenue mainly because of a one-time, non-recurring ~$10.2B income-tax charge from the EU State Aid (Ireland) ruling recorded in fiscal Q4 2024 — a discrete tax item, not an operational decline. No adjusted/normalized figures are implied.",
+      "source_url": "https://www.apple.com/newsroom/2024/10/apple-reports-fourth-quarter-results/"
+    },
+    {
+      "statement": "income",
+      "line": "Revenue",
+      "period": "FY2023",
+      "explanation": "Revenue fell 2.8% YoY - Apple's first annual decline since 2019 - on a strong US dollar, a ~27% drop in Mac sales, soft China demand, and no new iPad launch that year.",
+      "source_url": "https://www.cnbc.com/2023/11/02/apple-aapl-earnings-q4-2023.html"
+    },
+    {
+      "statement": "balance",
+      "line": "Total Equity",
+      "period": "FY2022",
+      "explanation": "Shareholders' equity fell to ~$50.7B because Apple repurchased $90.2B of stock in FY2022 (its largest buyback year to date). Buybacks reduce equity.",
+      "source_url": "https://www.apple.com/newsroom/2022/10/apple-reports-fourth-quarter-results/"
+    },
+    {
+      "statement": "ratios",
+      "line": "Return on Equity",
+      "period": "FY2022",
+      "explanation": "ROE spiked to ~197% because Apple's $90.2B of FY2022 buybacks shrank shareholders' equity to ~$50.7B; a smaller equity base inflates return on equity.",
+      "source_url": "https://www.apple.com/newsroom/2022/10/apple-reports-fourth-quarter-results/"
+    }
+  ]
+}
